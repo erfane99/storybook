@@ -3,9 +3,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[build.environment]
-  NEXT_TELEMETRY_DISABLED = "1"
-
-[functions]
-  included_files = ["public/**"]
