@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import cloudinary from '@/lib/cloudinary';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ const stylePrompts = {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, style = 'semi-realistic' } = await req.json();
+    const { prompt, style = 'semi-realistic', user_id } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -27,6 +27,36 @@ export async function POST(req: Request) {
         { error: 'OpenAI API key not configured' },
         { status: 500 }
       );
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Check cache if user_id is provided
+    if (user_id) {
+      const { data: cachedImage, error: cacheError } = await supabase
+        .from('cartoon_cache')
+        .select('cartoon_url')
+        .eq('original_prompt', prompt)
+        .eq('style', style)
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      if (cacheError && cacheError.code !== 'PGRST116') {
+        console.error('Cache lookup error:', cacheError);
+      }
+
+      if (cachedImage?.cartoon_url) {
+        console.log('✅ Cache hit for prompt:', prompt);
+        return NextResponse.json({
+          url: cachedImage.cartoon_url
+        });
+      }
+
+      console.log('❌ Cache miss for prompt:', prompt);
     }
 
     // Clean the prompt by removing subjective language and vague descriptions
@@ -81,24 +111,27 @@ export async function POST(req: Request) {
       throw new Error('No image URL received from OpenAI');
     }
 
-    const imageResponse = await fetch(data.data[0].url);
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    const generatedUrl = data.data[0].url;
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { 
-          resource_type: 'image',
-          folder: 'storybook/cartoonized'
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(imageBuffer);
-    });
+    // Save to cache if user_id is provided
+    if (user_id) {
+      const { error: saveError } = await supabase
+        .from('cartoon_cache')
+        .insert({
+          user_id,
+          original_prompt: prompt,
+          cartoon_url: generatedUrl,
+          style,
+          created_at: new Date().toISOString()
+        });
+
+      if (saveError) {
+        console.error('Error saving to cache:', saveError);
+      }
+    }
 
     return NextResponse.json({
-      url: (uploadResult as any).secure_url
+      url: generatedUrl
     });
   } catch (error: any) {
     console.error('Error cartoonizing image:', error);
