@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { Step1_Title } from './steps/Step1_Title';
 import { Step2_Image } from './steps/Step2_Image';
 import { Step3_Style } from './steps/Step3_Style';
+import { Step4_ConfirmImage } from './steps/Step4_ConfirmImage';
 import { Step4_Audience } from './steps/Step4_Audience';
 import { Step5_Story } from './steps/Step5_Story';
 import { Step6_Confirmation } from './steps/Step6_Confirmation';
@@ -27,10 +28,11 @@ export interface StoryFormData {
 export function MultiStepStoryForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [formData, setFormData] = useState<StoryFormData>({
     title: '',
     characterImage: null,
-    cartoonStyle: 'semi-realistic',
+    cartoonStyle: '',
     audience: 'children',
     story: '',
   });
@@ -42,8 +44,61 @@ export function MultiStepStoryForm() {
     setFormData(prev => ({ ...prev, ...data }));
   };
 
+  const handleStyleChange = async (style: string) => {
+    if (!formData.imageUrl) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please upload an image first'
+      });
+      return;
+    }
+
+    setRetryCount(prev => prev + 1);
+    updateFormData({ cartoonStyle: style });
+
+    try {
+      // Get image description
+      const describeRes = await fetch('/api/image/describe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: formData.imageUrl }),
+      });
+
+      if (!describeRes.ok) {
+        throw new Error('Failed to describe image');
+      }
+
+      const { characterDescription } = await describeRes.json();
+
+      // Generate cartoon image
+      const cartoonizeRes = await fetch('/api/image/cartoonize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: characterDescription,
+          style: style,
+          imageUrl: formData.imageUrl
+        }),
+      });
+
+      if (!cartoonizeRes.ok) {
+        throw new Error('Failed to generate cartoon image');
+      }
+
+      const { url } = await cartoonizeRes.json();
+      updateFormData({ cartoonizedUrl: url });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to generate cartoon image'
+      });
+    }
+  };
+
   const handleNext = () => {
-    if (currentStep < 6) {
+    if (currentStep < 7) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -118,17 +173,27 @@ export function MultiStepStoryForm() {
         return (
           <Step3_Style
             value={formData.cartoonStyle}
-            onChange={(style) => updateFormData({ cartoonStyle: style })}
+            onChange={handleStyleChange}
             imageUrl={formData.imageUrl}
             cartoonizedUrl={formData.cartoonizedUrl}
             updateFormData={updateFormData}
           />
         );
       case 4:
-        return <Step4_Audience value={formData.audience} onChange={(audience) => updateFormData({ audience })} />;
+        return (
+          <Step4_ConfirmImage
+            imageUrl={formData.imageUrl!}
+            cartoonizedUrl={formData.cartoonizedUrl!}
+            retryCount={retryCount}
+            onRetry={() => handleStyleChange(formData.cartoonStyle)}
+            onNext={handleNext}
+          />
+        );
       case 5:
-        return <Step5_Story value={formData.story} onChange={(story) => updateFormData({ story })} />;
+        return <Step4_Audience value={formData.audience} onChange={(audience) => updateFormData({ audience })} />;
       case 6:
+        return <Step5_Story value={formData.story} onChange={(story) => updateFormData({ story })} />;
+      case 7:
         return <Step6_Confirmation formData={formData} />;
       default:
         return null;
@@ -142,10 +207,12 @@ export function MultiStepStoryForm() {
       case 2:
         return !formData.characterImage && !formData.imageUrl;
       case 3:
-        return !formData.cartoonStyle || !formData.cartoonizedUrl;
+        return !formData.cartoonStyle;
       case 4:
-        return !formData.audience;
+        return !formData.cartoonizedUrl;
       case 5:
+        return !formData.audience;
+      case 6:
         return !formData.story.trim();
       default:
         return false;
@@ -159,12 +226,12 @@ export function MultiStepStoryForm() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-center mb-2">Create Your Story</h2>
             <p className="text-sm text-muted-foreground text-center mb-4">
-              Step {currentStep} of 6
+              Step {currentStep} of 7
             </p>
             <div className="w-full h-3 bg-gray-200 rounded-full">
               <div
                 className="bg-primary h-3 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / 6) * 100}%` }}
+                style={{ width: `${(currentStep / 7) * 100}%` }}
               />
             </div>
           </div>
@@ -194,7 +261,7 @@ export function MultiStepStoryForm() {
               Back
             </Button>
 
-            {currentStep < 6 ? (
+            {currentStep < 7 ? (
               <Button
                 onClick={handleNext}
                 disabled={isNextDisabled() || isSubmitting}
