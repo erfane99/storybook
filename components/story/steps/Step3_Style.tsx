@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,10 +31,8 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [prompt, setPrompt] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   const { toast } = useToast();
-  const supabase = useSupabaseClient();
 
   const handleStyleChange = async (newStyle: string) => {
     onChange(newStyle);
@@ -50,25 +47,18 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
 
     try {
       // Get prompt if not already fetched
-      if (!prompt) {
+      let finalPrompt = prompt;
+      if (!finalPrompt) {
         const describeRes = await fetch('/api/image/describe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageUrl }),
         });
         if (!describeRes.ok) throw new Error('Failed to describe image');
-        const { prompt: describedPrompt } = await describeRes.json();
-        setPrompt(describedPrompt);
+        const { characterDescription } = await describeRes.json();
+        finalPrompt = characterDescription;
+        setPrompt(finalPrompt);
       }
-
-      // Get user ID if not already set
-      if (!userId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user?.id) throw new Error('User not authenticated');
-        setUserId(user.id);
-      }
-
-      const finalPrompt = prompt || '';
 
       const cartoonizeRes = await fetch('/api/image/cartoonize', {
         method: 'POST',
@@ -77,7 +67,6 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
           imageUrl,
           style: newStyle,
           prompt: finalPrompt,
-          userId: userId,
         }),
       });
 
