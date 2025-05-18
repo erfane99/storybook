@@ -1,24 +1,92 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Step4_ConfirmImageProps {
   imageUrl: string;
-  cartoonizedUrl: string;
-  onRetry: () => void;
-  onNext: () => void;
-  retryCount: number;
+  cartoonStyle: string;
+  cartoonizedUrl?: string;
+  updateFormData: (data: any) => void;
 }
 
 export function Step4_ConfirmImage({
   imageUrl,
+  cartoonStyle,
   cartoonizedUrl,
-  onRetry,
-  onNext,
-  retryCount
+  updateFormData,
 }: Step4_ConfirmImageProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!cartoonizedUrl && imageUrl && cartoonStyle) {
+      generateCartoonImage();
+    }
+  }, []);
+
+  const generateCartoonImage = async () => {
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      // Get image description if we don't have one
+      if (!prompt) {
+        const describeRes = await fetch('/api/image/describe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl }),
+        });
+
+        if (!describeRes.ok) {
+          throw new Error('Failed to describe image');
+        }
+
+        const { characterDescription } = await describeRes.json();
+        setPrompt(characterDescription);
+      }
+
+      // Generate cartoon image
+      const cartoonizeRes = await fetch('/api/image/cartoonize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          style: cartoonStyle,
+          imageUrl,
+        }),
+      });
+
+      if (!cartoonizeRes.ok) {
+        throw new Error('Failed to generate cartoon image');
+      }
+
+      const { url } = await cartoonizeRes.json();
+      updateFormData({ cartoonizedUrl: url });
+    } catch (error: any) {
+      setError(error.message);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to generate cartoon image',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (retryCount >= 3) return;
+    setRetryCount(prev => prev + 1);
+    generateCartoonImage();
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -45,11 +113,21 @@ export function Step4_ConfirmImage({
         <Card>
           <CardContent className="p-4">
             <div className="aspect-square relative rounded-lg overflow-hidden">
-              <img
-                src={cartoonizedUrl}
-                alt="Cartoon"
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+              {isGenerating ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : cartoonizedUrl ? (
+                <img
+                  src={cartoonizedUrl}
+                  alt="Cartoon"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                  <p className="text-muted-foreground">Generating cartoon image...</p>
+                </div>
+              )}
             </div>
             <p className="text-center text-sm mt-2 text-muted-foreground">Cartoon</p>
           </CardContent>
@@ -59,8 +137,8 @@ export function Step4_ConfirmImage({
       <div className="flex justify-between items-center pt-4">
         <Button
           variant="outline"
-          onClick={onRetry}
-          disabled={retryCount >= 3}
+          onClick={handleRetry}
+          disabled={retryCount >= 3 || isGenerating}
           className="flex items-center"
         >
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -71,14 +149,13 @@ export function Step4_ConfirmImage({
             </span>
           )}
         </Button>
-
-        <Button
-          onClick={onNext}
-          disabled={!cartoonizedUrl}
-        >
-          Continue
-        </Button>
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive text-center">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

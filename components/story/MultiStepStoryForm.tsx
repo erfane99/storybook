@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,11 +28,6 @@ export interface StoryFormData {
 export function MultiStepStoryForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [prompt, setPrompt] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const [formData, setFormData] = useState<StoryFormData>({
     title: '',
     characterImage: null,
@@ -46,67 +41,6 @@ export function MultiStepStoryForm() {
 
   const updateFormData = (data: Partial<StoryFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
-  };
-
-  const handleStyleChange = async (style: string) => {
-    if (!formData.imageUrl) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please upload an image first',
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    setError(null);
-    setRetryCount((prev) => prev + 1);
-    updateFormData({ cartoonStyle: style });
-
-    try {
-      let finalPrompt = prompt;
-      if (!finalPrompt) {
-        const describeRes = await fetch('/api/image/describe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl: formData.imageUrl }),
-        });
-
-        if (!describeRes.ok) {
-          throw new Error('Failed to describe image');
-        }
-
-        const { characterDescription } = await describeRes.json();
-        finalPrompt = characterDescription;
-        setPrompt(finalPrompt);
-      }
-
-      const cartoonizeRes = await fetch('/api/image/cartoonize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: finalPrompt,
-          style,
-          imageUrl: formData.imageUrl,
-        }),
-      });
-
-      if (!cartoonizeRes.ok) {
-        throw new Error('Failed to generate cartoon image');
-      }
-
-      const { url } = await cartoonizeRes.json();
-      updateFormData({ cartoonizedUrl: url });
-    } catch (error: any) {
-      setError(error.message || 'Failed to generate cartoon image');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to generate cartoon image',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   const handleNext = () => {
@@ -186,21 +120,15 @@ export function MultiStepStoryForm() {
           <Step3_Style
             value={formData.cartoonStyle}
             onChange={(style) => updateFormData({ cartoonStyle: style })}
-            imageUrl={formData.imageUrl}
-            cartoonizedUrl={formData.cartoonizedUrl}
-            updateFormData={updateFormData}
           />
         );
       case 4:
         return (
           <Step4_ConfirmImage
             imageUrl={formData.imageUrl!}
-            cartoonizedUrl={formData.cartoonizedUrl!}
-            isGenerating={isGenerating}
-            error={error}
-            retryCount={retryCount}
-            onRetry={() => handleStyleChange(formData.cartoonStyle)}
-            onNext={handleNext}
+            cartoonStyle={formData.cartoonStyle}
+            cartoonizedUrl={formData.cartoonizedUrl}
+            updateFormData={updateFormData}
           />
         );
       case 5:
@@ -223,7 +151,7 @@ export function MultiStepStoryForm() {
       case 3:
         return !formData.cartoonStyle;
       case 4:
-        return !formData.cartoonizedUrl || isGenerating;
+        return !formData.cartoonizedUrl;
       case 5:
         return !formData.audience;
       case 6:
