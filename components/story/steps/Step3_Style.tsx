@@ -22,75 +22,19 @@ const styles = [
   { value: 'storybook', label: 'Storybook', description: 'Soft, whimsical style with gentle colors and clean lines' },
   { value: 'semi-realistic', label: 'Semi-Realistic', description: 'Balanced style with smooth shading and accurate details' },
   { value: 'comic-book', label: 'Comic Book', description: 'Bold lines and dynamic shading inspired by comic books' },
-  { value: 'flat-illustration', label: 'Flat Illustration', description: 'Modern minimal style with clean vector-like appearance' },
+  { value: 'flat-illustration', label: 'Flat Illustration', description: 'Modern minimal style with clean vector lines' },
   { value: 'anime', label: 'Anime', description: 'Japanese animation style with expressive features' },
 ];
 
 export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateFormData }: Step3_StyleProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [prompt, setPrompt] = useState<string | null>(null);
-
   const { toast } = useToast();
 
-  const handleStyleChange = async (newStyle: string) => {
-    onChange(newStyle);
-    setError(null);
-
-    if (!imageUrl) {
-      toast({ title: 'No image selected', description: 'Please upload a character image first.' });
-      return;
-    }
-
+  const handleStyleSelect = async (newStyle: string) => {
     setIsGenerating(true);
-
-    try {
-      // Get prompt if not already fetched
-      let finalPrompt = prompt;
-      if (!finalPrompt) {
-        const describeRes = await fetch('/api/image/describe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl }),
-        });
-        if (!describeRes.ok) throw new Error('Failed to describe image');
-        const { characterDescription } = await describeRes.json();
-        finalPrompt = characterDescription;
-        setPrompt(finalPrompt);
-      }
-
-      const cartoonizeRes = await fetch('/api/image/cartoonize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl,
-          style: newStyle,
-          prompt: finalPrompt,
-        }),
-      });
-
-      if (!cartoonizeRes.ok) throw new Error('Failed to generate cartoon image');
-
-      const { url } = await cartoonizeRes.json();
-      updateFormData({ cartoonizedUrl: url });
-      setError(null);
-      setRetryCount(0);
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate cartoon image');
-      setRetryCount(prev => prev + 1);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message || 'Failed to generate cartoon image',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleRetry = () => {
-    handleStyleChange(value);
+    setError(null);
+    onChange(newStyle);
   };
 
   return (
@@ -102,7 +46,7 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
         </p>
       </div>
 
-      <RadioGroup value={value} onValueChange={handleStyleChange} className="grid grid-cols-1 gap-4">
+      <RadioGroup value={value} onValueChange={handleStyleSelect} className="grid grid-cols-1 gap-4">
         {styles.map(style => (
           <Card key={style.value} className={`cursor-pointer transition-all hover:shadow-md ${value === style.value ? 'ring-2 ring-primary' : ''}`}>
             <CardContent className="p-4">
@@ -140,19 +84,7 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
                     </motion.div>
                   ) : error ? (
                     <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                      {retryCount >= 3 ? (
-                        <p className="text-sm text-destructive text-center mb-2">
-                          This style may not be supported. Try another style or re-upload a photo.
-                        </p>
-                      ) : (
-                        <>
-                          <p className="text-sm text-destructive text-center mb-2">Failed to generate cartoon image</p>
-                          <Button variant="outline" size="sm" onClick={handleRetry} className="flex items-center">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Try Again
-                          </Button>
-                        </>
-                      )}
+                      <p className="text-sm text-destructive text-center mb-2">Failed to generate cartoon image</p>
                     </motion.div>
                   ) : cartoonizedUrl ? (
                     <motion.img key={cartoonizedUrl} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3 }} src={cartoonizedUrl} alt="Cartoon" className="w-full h-full object-cover transition duration-300 ease-in-out" />

@@ -29,6 +29,9 @@ export function MultiStepStoryForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [prompt, setPrompt] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<StoryFormData>({
     title: '',
     characterImage: null,
@@ -54,30 +57,36 @@ export function MultiStepStoryForm() {
       return;
     }
 
-    setRetryCount(prev => prev + 1);
+    setIsGenerating(true);
+    setError(null);
     updateFormData({ cartoonStyle: style });
 
     try {
-      // Get image description
-      const describeRes = await fetch('/api/image/describe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: formData.imageUrl }),
-      });
+      // Get image description if not already fetched
+      let finalPrompt = prompt;
+      if (!finalPrompt) {
+        const describeRes = await fetch('/api/image/describe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: formData.imageUrl }),
+        });
 
-      if (!describeRes.ok) {
-        throw new Error('Failed to describe image');
+        if (!describeRes.ok) {
+          throw new Error('Failed to describe image');
+        }
+
+        const { characterDescription } = await describeRes.json();
+        finalPrompt = characterDescription;
+        setPrompt(finalPrompt);
       }
-
-      const { characterDescription } = await describeRes.json();
 
       // Generate cartoon image
       const cartoonizeRes = await fetch('/api/image/cartoonize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: characterDescription,
-          style: style,
+          prompt: finalPrompt,
+          style,
           imageUrl: formData.imageUrl
         }),
       });
@@ -88,12 +97,17 @@ export function MultiStepStoryForm() {
 
       const { url } = await cartoonizeRes.json();
       updateFormData({ cartoonizedUrl: url });
+      setRetryCount(prev => prev + 1);
+      handleNext();
     } catch (error: any) {
+      setError(error.message || 'Failed to generate cartoon image');
       toast({
         variant: 'destructive',
         title: 'Error',
         description: error.message || 'Failed to generate cartoon image'
       });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
