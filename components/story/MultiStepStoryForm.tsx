@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,6 +32,7 @@ export function MultiStepStoryForm() {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<StoryFormData>({
     title: '',
     characterImage: null,
@@ -39,12 +40,12 @@ export function MultiStepStoryForm() {
     audience: 'children',
     story: '',
   });
-  
+
   const router = useRouter();
   const { toast } = useToast();
 
   const updateFormData = (data: Partial<StoryFormData>) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    setFormData((prev) => ({ ...prev, ...data }));
   };
 
   const handleStyleChange = async (style: string) => {
@@ -52,17 +53,17 @@ export function MultiStepStoryForm() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please upload an image first'
+        description: 'Please upload an image first',
       });
       return;
     }
 
     setIsGenerating(true);
     setError(null);
+    setRetryCount((prev) => prev + 1);
     updateFormData({ cartoonStyle: style });
 
     try {
-      // Get image description if not already fetched
       let finalPrompt = prompt;
       if (!finalPrompt) {
         const describeRes = await fetch('/api/image/describe', {
@@ -80,14 +81,13 @@ export function MultiStepStoryForm() {
         setPrompt(finalPrompt);
       }
 
-      // Generate cartoon image
       const cartoonizeRes = await fetch('/api/image/cartoonize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: finalPrompt,
           style,
-          imageUrl: formData.imageUrl
+          imageUrl: formData.imageUrl,
         }),
       });
 
@@ -97,14 +97,12 @@ export function MultiStepStoryForm() {
 
       const { url } = await cartoonizeRes.json();
       updateFormData({ cartoonizedUrl: url });
-      setRetryCount(prev => prev + 1);
-      handleNext();
     } catch (error: any) {
       setError(error.message || 'Failed to generate cartoon image');
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to generate cartoon image'
+        description: error.message || 'Failed to generate cartoon image',
       });
     } finally {
       setIsGenerating(false);
@@ -113,13 +111,13 @@ export function MultiStepStoryForm() {
 
   const handleNext = () => {
     if (currentStep < 7) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     }
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep((prev) => prev - 1);
     }
   };
 
@@ -187,7 +185,7 @@ export function MultiStepStoryForm() {
         return (
           <Step3_Style
             value={formData.cartoonStyle}
-            onChange={handleStyleChange}
+            onChange={(style) => updateFormData({ cartoonStyle: style })}
             imageUrl={formData.imageUrl}
             cartoonizedUrl={formData.cartoonizedUrl}
             updateFormData={updateFormData}
@@ -198,6 +196,8 @@ export function MultiStepStoryForm() {
           <Step4_ConfirmImage
             imageUrl={formData.imageUrl!}
             cartoonizedUrl={formData.cartoonizedUrl!}
+            isGenerating={isGenerating}
+            error={error}
             retryCount={retryCount}
             onRetry={() => handleStyleChange(formData.cartoonStyle)}
             onNext={handleNext}
@@ -223,7 +223,7 @@ export function MultiStepStoryForm() {
       case 3:
         return !formData.cartoonStyle;
       case 4:
-        return !formData.cartoonizedUrl;
+        return !formData.cartoonizedUrl || isGenerating;
       case 5:
         return !formData.audience;
       case 6:
