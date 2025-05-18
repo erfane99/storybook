@@ -8,12 +8,13 @@ export async function POST(req: Request) {
     const { imageUrl, user_id, style = 'storybook' } = await req.json();
 
     // Validate required fields
-    if (!imageUrl || !user_id) {
-      return NextResponse.json(
-        { error: 'Image URL and user ID are required' },
-        { status: 400 }
-      );
-    }
+  if (!imageUrl) {
+  return NextResponse.json(
+    { error: 'Image URL is required' },
+    { status: 400 }
+  );
+}
+
 
     // Initialize Supabase client
     const supabase = createClient(
