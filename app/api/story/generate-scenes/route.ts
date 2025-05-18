@@ -39,7 +39,7 @@ const audienceConfigs = {
 };
 
 // Process scenes in batches of 4
-async function processBatch(scenes: Scene[], characterDescription: string) {
+async function processBatch(scenes: Scene[], characterDescription: string, audience: string) {
   const results = [];
   const batchSize = 4;
   
@@ -54,21 +54,17 @@ async function processBatch(scenes: Scene[], characterDescription: string) {
         // Retry logic - maximum 2 retries
         for (let attempt = 0; attempt <= 2; attempt++) {
           try {
-            const imagePrompt = await enhanceImagePrompt(scene.imagePrompt);
-            
-            const response = await fetch('https://api.openai.com/v1/images/generations', {
+            const response = await fetch('http://localhost:3000/api/story/generate-cartoon-image', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'dall-e-3',
-                prompt: `${imagePrompt}\n\nCharacter Description: ${characterDescription}`,
-                n: 1,
-                size: '1024x1024',
-                quality: 'standard',
-                style: 'vivid',
+                image_prompt: scene.imagePrompt,
+                emotion: scene.emotion,
+                character_description: characterDescription,
+                audience,
+                isReusedImage: true
               }),
             });
 
@@ -80,7 +76,7 @@ async function processBatch(scenes: Scene[], characterDescription: string) {
             const data = await response.json();
             return {
               ...scene,
-              generatedImage: data.data[0].url,
+              generatedImage: data.url,
               error: false
             };
           } catch (error) {
@@ -165,49 +161,12 @@ async function analyzeImage(imageUrl: string): Promise<string> {
   }
 }
 
-async function enhanceImagePrompt(prompt: string): Promise<string> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a visual storytelling expert. Rewrite this image description to be vivid, detailed, and emotionally expressive. Include the mood, setting, and dynamic actions suitable for a DALL·E cartoon-style illustration.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to enhance image prompt');
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-  } catch (error) {
-    console.error('Error enhancing image prompt:', error);
-    throw error;
-  }
-}
-
 // Utility function for controlled delays
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function POST(request: Request) {
   try {
-    const { story, characterImage, audience = 'young_adults' } = await request.json();
+    const { story, characterImage, audience = 'young_adults', isReusedImage = false } = await request.json();
 
     if (!story || story.trim().length < 50) {
       return NextResponse.json(
@@ -329,7 +288,7 @@ ${story}`
 
       // Process scenes in batches
       const allScenes = data.pages.flatMap((page: Page) => page.scenes);
-      const processedScenes = await processBatch(allScenes, characterDescription);
+      const processedScenes = await processBatch(allScenes, characterDescription, audience);
       
       // Reconstruct pages with processed scenes
       let sceneIndex = 0;
