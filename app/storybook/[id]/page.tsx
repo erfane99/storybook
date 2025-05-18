@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -160,6 +160,28 @@ export default function StorybookPage() {
                 </div>
               </div>
             ))}
+
+            {/* Final Action Buttons */}
+            <div className="mt-8 flex justify-center gap-4">
+              <Button
+                variant="default"
+                onClick={() => toast({
+                  title: 'Paid Feature',
+                  description: 'Please upgrade your plan to share your storybook.',
+                })}
+              >
+                Share Storybook
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => toast({
+                  title: 'Paid Feature',
+                  description: 'Please upgrade your plan to download the storybook as PDF.',
+                })}
+              >
+                Download as PDF
+              </Button>
+            </div>
           </div>
         ) : (
           <Card>
