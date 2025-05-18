@@ -1,5 +1,6 @@
+import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,37 @@ interface Page {
 
 export async function POST(request: Request) {
   try {
+    // Initialize server-side Supabase client
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete({ name, ...options });
+          },
+        },
+      }
+    );
+
+    // Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error('Auth error:', authError);
+      // Continue without user_id if auth fails
+    }
+
     const useMock = process.env.USE_MOCK === 'true';
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -25,7 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Server config error' }, { status: 500 });
     }
 
-    const { title, story, characterImage, user_id, pages, audience, isReusedImage } = await request.json();
+    const { title, story, characterImage, pages, audience, isReusedImage } = await request.json();
 
     if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     if (!story?.trim()) return NextResponse.json({ error: 'Story content is required' }, { status: 400 });
@@ -79,7 +111,7 @@ export async function POST(request: Request) {
               emotion: scene.emotion,
               audience,
               isReusedImage,
-              cartoon_image: characterImage, // ✅ ensure consistent reuse
+              cartoon_image: characterImage,
             }),
           });
 
@@ -119,19 +151,6 @@ export async function POST(request: Request) {
       });
     }
 
-    console.log('📝 Initializing Supabase client...');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } }
-    );
-
-    const { error: pingError } = await supabase.from('storybook_entries').select('id').limit(1);
-    if (pingError) {
-      console.error('❌ Supabase DB connection failed:', pingError);
-      return NextResponse.json({ error: 'Database connection error' }, { status: 500 });
-    }
-
     console.log('💾 Saving storybook to database...');
     const { data: storybookEntry, error: supabaseError } = await supabase
       .from('storybook_entries')
@@ -139,7 +158,7 @@ export async function POST(request: Request) {
         title,
         story,
         pages: updatedPages,
-        user_id: user_id || null,
+        user_id: user?.id || null,
         audience,
         character_description: characterDescription,
         has_errors: hasErrors,
