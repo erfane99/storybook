@@ -49,6 +49,7 @@ const styles = [
 export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateFormData }: Step3_StyleProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   const handleStyleChange = async (newStyle: string) => {
@@ -84,8 +85,10 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
       const { url } = await response.json();
       updateFormData({ cartoonizedUrl: url });
       setError(null);
+      setRetryCount(0);
     } catch (error: any) {
       setError(error.message || 'Failed to generate cartoon image');
+      setRetryCount(prev => prev + 1);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -101,7 +104,7 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
   };
 
   return (
-    <div className="space-y-6">
+    <div className="px-2 md:px-4 space-y-4">
       <div>
         <h3 className="text-lg font-semibold mb-2">Choose Art Style</h3>
         <p className="text-muted-foreground mb-4">
@@ -149,22 +152,27 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
       )}
 
       {imageUrl && (
-        <div className="mt-6">
+        <div className="mt-4">
           <h4 className="text-md font-semibold mb-4 text-center">Preview</h4>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="aspect-square relative rounded-lg overflow-hidden shadow">
+            <div className="border rounded-xl overflow-hidden shadow-sm bg-background">
+              <div className="aspect-square relative">
                 <img
                   src={imageUrl}
                   alt="Original"
                   className="w-full h-full object-cover"
                 />
               </div>
-              <p className="text-center text-sm mt-2 text-muted-foreground">Original</p>
+              <p 
+                className="text-center text-sm py-2 text-muted-foreground"
+                aria-live="polite"
+              >
+                Original
+              </p>
             </div>
 
-            <div>
-              <div className="aspect-square relative rounded-lg overflow-hidden shadow bg-muted">
+            <div className="border rounded-xl overflow-hidden shadow-sm bg-background">
+              <div className="aspect-square relative">
                 <AnimatePresence mode="wait">
                   {isGenerating ? (
                     <motion.div
@@ -184,28 +192,37 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
                       exit={{ opacity: 0 }}
                       className="absolute inset-0 flex flex-col items-center justify-center p-4"
                     >
-                      <p className="text-sm text-destructive text-center mb-2">
-                        Failed to generate cartoon image
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRetry}
-                        className="flex items-center"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Try Again
-                      </Button>
+                      {retryCount >= 3 ? (
+                        <p className="text-sm text-destructive text-center mb-2">
+                          This style may not be supported for this image. Try another style or re-upload a different photo.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-sm text-destructive text-center mb-2">
+                            Failed to generate cartoon image
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRetry}
+                            className="flex items-center"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Try Again
+                          </Button>
+                        </>
+                      )}
                     </motion.div>
                   ) : cartoonizedUrl ? (
                     <motion.img
-                      key="image"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      key={cartoonizedUrl}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
                       src={cartoonizedUrl}
                       alt="Cartoon"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition duration-300 ease-in-out"
                     />
                   ) : (
                     <motion.div
@@ -222,7 +239,10 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
                   )}
                 </AnimatePresence>
               </div>
-              <p className="text-center text-sm mt-2 text-muted-foreground">
+              <p 
+                className="text-center text-sm py-2 text-muted-foreground"
+                aria-live="polite"
+              >
                 {isGenerating ? 'Generating...' : 'Cartoon'}
               </p>
             </div>
