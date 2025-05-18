@@ -12,9 +12,9 @@ export function Step1_Title({ value, onChange }: Step1_TitleProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Give your story a title</h3>
+        <h3 className="text-lg font-semibold mb-2">Step 1: Story Title</h3>
         <p className="text-muted-foreground mb-4">
-          Choose a memorable title that captures the essence of your story.
+          Enter the title of your story. Make it fun and memorable!
         </p>
       </div>
 
@@ -26,7 +26,13 @@ export function Step1_Title({ value, onChange }: Step1_TitleProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="max-w-xl"
+          autoFocus
         />
+        {!value.trim() && (
+          <p className="text-sm text-muted-foreground">
+            Please enter a title to continue
+          </p>
+        )}
       </div>
     </div>
   );
