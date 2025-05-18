@@ -48,16 +48,16 @@ export function Step6_Confirmation({ formData }: Step6_ConfirmationProps) {
               <CardTitle className="text-lg">Character Image</CardTitle>
             </CardHeader>
             <CardContent>
-              {formData.imageUrl ? (
+              {formData.cartoonizedUrl ? (
                 <div className="aspect-video rounded-lg overflow-hidden">
                   <img
-                    src={formData.imageUrl}
-                    alt="Character"
+                    src={formData.cartoonizedUrl}
+                    alt="Cartoon Character"
                     className="w-full h-full object-cover"
                   />
                 </div>
               ) : (
-                <p className="text-muted-foreground">No image selected</p>
+                <p className="text-muted-foreground">No cartoonized image available</p>
               )}
             </CardContent>
           </Card>
