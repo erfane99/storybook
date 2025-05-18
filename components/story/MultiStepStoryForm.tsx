@@ -77,6 +77,8 @@ export function MultiStepStoryForm() {
       const { scenesText } = await response.json();
       const { pages } = JSON.parse(scenesText);
 
+      const user_id = localStorage.getItem('user_id') || null;
+
       const createResponse = await fetch('/api/story/create-storybook', {
         method: 'POST',
         headers: {
@@ -88,6 +90,8 @@ export function MultiStepStoryForm() {
           characterImage: formData.cartoonizedUrl,
           pages,
           audience: formData.audience,
+          user_id,
+          isReusedImage: true,
         }),
       });
 
