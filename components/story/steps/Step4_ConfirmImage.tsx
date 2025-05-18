@@ -36,8 +36,10 @@ export function Step4_ConfirmImage({
     setError(null);
 
     try {
-      // Get image description if we don't have one
-      if (!prompt) {
+      let finalPrompt = prompt;
+
+      // Get image description if not already available
+      if (!finalPrompt) {
         const describeRes = await fetch('/api/image/describe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -49,6 +51,7 @@ export function Step4_ConfirmImage({
         }
 
         const { characterDescription } = await describeRes.json();
+        finalPrompt = characterDescription;
         setPrompt(characterDescription);
       }
 
@@ -57,7 +60,7 @@ export function Step4_ConfirmImage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
+          prompt: finalPrompt,
           style: cartoonStyle,
           imageUrl,
         }),
