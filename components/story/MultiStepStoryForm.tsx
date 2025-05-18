@@ -115,7 +115,15 @@ export function MultiStepStoryForm() {
       case 2:
         return <Step2_Image formData={formData} updateFormData={updateFormData} />;
       case 3:
-        return <Step3_Style value={formData.cartoonStyle} onChange={(style) => updateFormData({ cartoonStyle: style })} />;
+        return (
+          <Step3_Style
+            value={formData.cartoonStyle}
+            onChange={(style) => updateFormData({ cartoonStyle: style })}
+            imageUrl={formData.imageUrl}
+            cartoonizedUrl={formData.cartoonizedUrl}
+            updateFormData={updateFormData}
+          />
+        );
       case 4:
         return <Step4_Audience value={formData.audience} onChange={(audience) => updateFormData({ audience })} />;
       case 5:
@@ -134,7 +142,7 @@ export function MultiStepStoryForm() {
       case 2:
         return !formData.characterImage && !formData.imageUrl;
       case 3:
-        return !formData.cartoonStyle;
+        return !formData.cartoonStyle || !formData.cartoonizedUrl;
       case 4:
         return !formData.audience;
       case 5:
