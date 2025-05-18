@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StoryFormData } from '../MultiStepStoryForm';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Step3_StyleProps {
   value: string;
@@ -46,10 +48,12 @@ const styles = [
 
 export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateFormData }: Step3_StyleProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleStyleChange = async (newStyle: string) => {
     onChange(newStyle);
+    setError(null);
 
     if (!imageUrl) {
       toast({
@@ -79,7 +83,9 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
 
       const { url } = await response.json();
       updateFormData({ cartoonizedUrl: url });
+      setError(null);
     } catch (error: any) {
+      setError(error.message || 'Failed to generate cartoon image');
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -88,6 +94,10 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleRetry = () => {
+    handleStyleChange(value);
   };
 
   return (
@@ -139,39 +149,82 @@ export function Step3_Style({ value, onChange, imageUrl, cartoonizedUrl, updateF
       )}
 
       {imageUrl && (
-        <div className="space-y-4">
-          <h4 className="font-medium">Preview</h4>
+        <div className="mt-6">
+          <h4 className="text-md font-semibold mb-4 text-center">Preview</h4>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="aspect-square relative rounded-lg overflow-hidden">
+            <div>
+              <div className="aspect-square relative rounded-lg overflow-hidden shadow">
                 <img
                   src={imageUrl}
                   alt="Original"
                   className="w-full h-full object-cover"
                 />
               </div>
-              <p className="text-sm text-center text-muted-foreground">Original</p>
+              <p className="text-center text-sm mt-2 text-muted-foreground">Original</p>
             </div>
 
-            <div className="space-y-2">
-              <div className="aspect-square relative rounded-lg overflow-hidden bg-muted">
-                {isGenerating ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : cartoonizedUrl ? (
-                  <img
-                    src={cartoonizedUrl}
-                    alt="Cartoon"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">Select a style to preview</p>
-                  </div>
-                )}
+            <div>
+              <div className="aspect-square relative rounded-lg overflow-hidden shadow bg-muted">
+                <AnimatePresence mode="wait">
+                  {isGenerating ? (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </motion.div>
+                  ) : error ? (
+                    <motion.div
+                      key="error"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex flex-col items-center justify-center p-4"
+                    >
+                      <p className="text-sm text-destructive text-center mb-2">
+                        Failed to generate cartoon image
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRetry}
+                        className="flex items-center"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Try Again
+                      </Button>
+                    </motion.div>
+                  ) : cartoonizedUrl ? (
+                    <motion.img
+                      key="image"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      src={cartoonizedUrl}
+                      alt="Cartoon"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <p className="text-sm text-muted-foreground">
+                        Select a style to preview
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <p className="text-sm text-center text-muted-foreground">Cartoon</p>
+              <p className="text-center text-sm mt-2 text-muted-foreground">
+                {isGenerating ? 'Generating...' : 'Cartoon'}
+              </p>
             </div>
           </div>
         </div>
