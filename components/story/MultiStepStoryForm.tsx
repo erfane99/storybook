@@ -12,6 +12,7 @@ import { Step4_Audience } from './steps/Step4_Audience';
 import { Step5_Story } from './steps/Step5_Story';
 import { Step6_Confirmation } from './steps/Step6_Confirmation';
 import { useToast } from '@/hooks/use-toast';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export interface StoryFormData {
   title: string;
@@ -144,62 +145,75 @@ export function MultiStepStoryForm() {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardContent className="p-6">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Create Your Story</h2>
-            <div className="text-sm text-muted-foreground">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <Card className="w-full max-w-md mx-auto rounded-2xl shadow-xl">
+        <CardContent className="p-6">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-center mb-2">Create Your Story</h2>
+            <p className="text-sm text-muted-foreground text-center mb-4">
               Step {currentStep} of 6
+            </p>
+            <div className="w-full h-3 bg-gray-200 rounded-full">
+              <div
+                className="bg-primary h-3 rounded-full transition-all duration-300"
+                style={{ width: `${(currentStep / 6) * 100}%` }}
+              />
             </div>
           </div>
-          <div className="w-full bg-secondary h-2 rounded-full">
-            <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 6) * 100}%` }}
-            />
+
+          <div className="min-h-[400px] flex flex-col justify-center px-2 md:px-4">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderStep()}
+              </motion.div>
+            </AnimatePresence>
           </div>
-        </div>
 
-        <div className="min-h-[400px]">
-          {renderStep()}
-        </div>
-
-        <div className="flex justify-between mt-8">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 1 || isSubmitting}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-
-          {currentStep < 6 ? (
+          <div className="flex justify-between mt-6 space-x-4">
             <Button
-              onClick={handleNext}
-              disabled={isNextDisabled() || isSubmitting}
+              variant="outline"
+              onClick={handleBack}
+              disabled={currentStep === 1 || isSubmitting}
+              className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl border"
             >
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
             </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Storybook...
-                </>
-              ) : (
-                'Create Storybook'
-              )}
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+
+            {currentStep < 6 ? (
+              <Button
+                onClick={handleNext}
+                disabled={isNextDisabled() || isSubmitting}
+                className="w-full bg-black text-white font-semibold py-3 rounded-xl"
+              >
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="w-full bg-black text-white font-semibold py-3 rounded-xl"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Storybook'
+                )}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
