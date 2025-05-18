@@ -2,11 +2,26 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { image_prompt, character_description, emotion, audience } = await request.json();
+    const { image_prompt, character_description, emotion, audience, isReusedImage } = await request.json();
 
+    // Validate required fields
     if (!image_prompt) {
       return NextResponse.json(
         { error: 'Image prompt is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!character_description) {
+      return NextResponse.json(
+        { error: 'Character description is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!emotion) {
+      return NextResponse.json(
+        { error: 'Emotion is required' },
         { status: 400 }
       );
     }
@@ -31,18 +46,20 @@ export async function POST(request: Request) {
 
     // Build prompt with clear separation between character and scene
     const finalPrompt = [
-      character_description,
       `Scene: ${image_prompt}`,
-      emotion && `Emotional state: ${emotion}`,
+      `Emotional state: ${emotion}`,
+      isReusedImage ? "Include the same cartoon character as previously described below." : "",
+      `Character description: ${character_description}`,
       audienceStyles[audience as keyof typeof audienceStyles] || audienceStyles.children
     ].filter(Boolean).join('\n\n');
 
     if (process.env.NODE_ENV === 'development') {
       console.log('🎨 DALL·E Prompt Structure:', {
-        character: character_description,
         scene: image_prompt,
         emotion,
+        character: character_description,
         style: audienceStyles[audience as keyof typeof audienceStyles],
+        isReusedImage,
         finalPrompt
       });
     }
