@@ -151,14 +151,9 @@ export default function StorybookPage() {
                         />
                       </div>
                       <CardContent className="p-4 flex-1 flex flex-col">
-                        <p className="bg-yellow-100 border border-yellow-300 p-2 rounded font-medium text-sm md:text-base shadow-sm mb-2">
+                        <p className="bg-yellow-100 border border-yellow-300 p-2 rounded font-medium text-sm md:text-base shadow-sm">
                           {scene.description}
                         </p>
-                        <div className="mt-auto">
-                          <span className="inline-block bg-yellow-200 px-2 py-1 rounded text-sm font-medium">
-                            {scene.emotion}
-                          </span>
-                        </div>
                       </CardContent>
                     </Card>
                   ))}
