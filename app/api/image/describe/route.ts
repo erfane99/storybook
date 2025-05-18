@@ -5,16 +5,15 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, user_id, style = 'storybook' } = await req.json();
+    const { imageUrl, style = 'storybook' } = await req.json();
 
     // Validate required fields
-  if (!imageUrl) {
-  return NextResponse.json(
-    { error: 'Image URL is required' },
-    { status: 400 }
-  );
-}
-
+    if (!imageUrl) {
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
+    }
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -24,18 +23,17 @@ export async function POST(req: Request) {
 
     // Check cache first
     const { data: cachedImage, error: cacheError } = await supabase
-      .from('cartoon_images')
+      .from('cartoonized_images') // ✅ fixed table name
       .select('generated_url')
-      .eq('user_id', user_id)
       .eq('original_url', imageUrl)
       .eq('style', style)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (cacheError && cacheError.code !== 'PGRST116') {
       console.error('Cache lookup error:', cacheError);
     }
 
-    // If we have a cached version, return it
     if (cachedImage?.generated_url) {
       console.log('✅ Cache hit for image:', imageUrl);
       return NextResponse.json({
@@ -82,15 +80,15 @@ Avoid vague words like "appears to", "seems to", "probably", "possibly". Avoid a
           {
             role: 'user',
             content: [
-              { 
-                type: 'text', 
-                text: 'Describe this image for cartoon generation. Only include clearly visible and objective features.' 
+              {
+                type: 'text',
+                text: 'Describe this image for cartoon generation. Only include clearly visible and objective features.'
               },
-              { 
-                type: 'image_url', 
-                image_url: { 
-                  url: imageUrl 
-                } 
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl
+                }
               }
             ]
           }
@@ -106,13 +104,13 @@ Avoid vague words like "appears to", "seems to", "probably", "possibly". Avoid a
 
     const data = await response.json();
     const description = data.choices[0].message.content;
-    
+
     if (process.env.NODE_ENV !== 'production') {
       const vagueTerms = [
         'tousled', 'flowing', 'probably', 'appears to be', 'seems to have',
         'might be', 'possibly', 'perhaps', 'likely has', 'could be', 'sorry', 'cannot'
       ];
-      const hasVagueTerms = vagueTerms.some(term => 
+      const hasVagueTerms = vagueTerms.some(term =>
         description.toLowerCase().includes(term)
       );
       if (hasVagueTerms) {
@@ -129,7 +127,7 @@ Avoid vague words like "appears to", "seems to", "probably", "possibly". Avoid a
   } catch (error: any) {
     console.error('Error describing image:', error);
     return NextResponse.json(
-      { 
+      {
         error: error.message || 'Failed to describe image',
         details: error.response?.data || error.toString()
       },
