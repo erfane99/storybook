@@ -21,10 +21,10 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Check cache first
+    // Check cache in cartoonized_images
     const { data: cachedImage, error: cacheError } = await supabase
-      .from('cartoonized_images') // ✅ fixed table name
-      .select('generated_url')
+      .from('cartoonized_images')
+      .select('cartoon_url')
       .eq('original_url', imageUrl)
       .eq('style', style)
       .limit(1)
@@ -34,11 +34,11 @@ export async function POST(req: Request) {
       console.error('Cache lookup error:', cacheError);
     }
 
-    if (cachedImage?.generated_url) {
+    if (cachedImage?.cartoon_url) {
       console.log('✅ Cache hit for image:', imageUrl);
       return NextResponse.json({
         cached: true,
-        cartoonUrl: cachedImage.generated_url,
+        cartoonUrl: cachedImage.cartoon_url,
         characterDescription: null
       });
     }
