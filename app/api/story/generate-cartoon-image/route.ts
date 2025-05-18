@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getCachedCartoonImage, saveCartoonImageToCache } from '@/lib/supabase/cartoon-cache';
 
 export async function POST(request: Request) {
   try {
@@ -8,34 +9,36 @@ export async function POST(request: Request) {
       emotion,
       audience,
       isReusedImage,
-      cartoon_image, // ✅ receive cached cartoon image URL
+      cartoon_image,
+      user_id, // optional
     } = await request.json();
 
-    // Validate required fields
-    if (!image_prompt) {
-      return NextResponse.json({ error: 'Image prompt is required' }, { status: 400 });
+    if (!image_prompt || !character_description || !emotion) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!character_description) {
-      return NextResponse.json({ error: 'Character description is required' }, { status: 400 });
-    }
-
-    if (!emotion) {
-      return NextResponse.json({ error: 'Emotion is required' }, { status: 400 });
-    }
-
-    // ✅ Reuse previously generated cartoon image if available
-    if (isReusedImage && cartoon_image) {
-      console.log('♻️ Reusing cartoon image for character.');
-      return NextResponse.json({
-        url: cartoon_image,
-        prompt_used: null,
-        reused: true,
-      });
-    }
-
-    // Check if mock mode is enabled
     const useMock = process.env.USE_MOCK === 'true';
+
+    // ♻️ Use image passed in request (if reused)
+    if (isReusedImage && cartoon_image) {
+      console.log('♻️ Reusing cartoon image provided in request.');
+      return NextResponse.json({ url: cartoon_image, reused: true });
+    }
+
+    // ♻️ Try retrieving from Supabase cache
+    const cached = await getCachedCartoonImage({
+      character_description,
+      style: audience,
+      prompt: image_prompt,
+      user_id,
+    });
+
+    if (cached) {
+      console.log('✅ Found cached cartoon image');
+      return NextResponse.json({ url: cached.generated_url, reused: true });
+    }
+
+    // 🐱 Return mock image in development
     if (useMock) {
       return NextResponse.json({
         url: 'https://placekitten.com/1024/1024',
@@ -56,20 +59,9 @@ export async function POST(request: Request) {
       isReusedImage ? 'Include the same cartoon character as previously described below.' : '',
       `Character description: ${character_description}`,
       audienceStyles[audience as keyof typeof audienceStyles] || audienceStyles.children,
-    ]
-      .filter(Boolean)
-      .join('\n\n');
+    ].filter(Boolean).join('\n\n');
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🎨 DALL·E Prompt Structure:', {
-        scene: image_prompt,
-        emotion,
-        character: character_description,
-        style: audienceStyles[audience as keyof typeof audienceStyles],
-        reused: false,
-        finalPrompt,
-      });
-    }
+    console.log('🎨 Prompt sent to DALL·E:', finalPrompt);
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -93,13 +85,24 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
+    const imageUrl = data.data[0].url;
+
+    // 💾 Save to cache
+    await saveCartoonImageToCache({
+      character_description,
+      prompt: image_prompt,
+      style: audience,
+      generated_url: imageUrl,
+      user_id,
+    });
+
     return NextResponse.json({
-      url: data.data[0].url,
+      url: imageUrl,
       prompt_used: finalPrompt,
       reused: false,
     });
   } catch (error: any) {
-    console.error('Error generating image:', error);
+    console.error('❌ Error in /generate-cartoon-image:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to generate image' },
       { status: 500 }
