@@ -2,13 +2,10 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { image_prompt, character_description, emotion, audience } = await request.json();
+    const { image_prompt, character_description, emotion, audience, supporting_characters } = await request.json();
 
     if (!image_prompt) {
-      return NextResponse.json(
-        { error: 'Image prompt is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Image prompt is required' }, { status: 400 });
     }
 
     const audienceStyles = {
@@ -17,13 +14,27 @@ export async function POST(request: Request) {
       adults: "Use a detailed, moody, and atmospheric style inspired by 'Watchmen', 'The Sandman', and 'Monstress'. Include rich textures, dramatic lighting, and symbolic elements.",
     };
 
-    const finalPrompt = `A comic panel illustration featuring ${character_description || "a young protagonist"} who is currently ${emotion?.toLowerCase() || "neutral"}. Scene: ${image_prompt.trim()}. ${audienceStyles[audience as keyof typeof audienceStyles] || ''}`;
+    // Format supporting characters list (if any)
+    const formattedSupporting = supporting_characters
+      ? `Supporting Characters:\n${supporting_characters.trim()}`
+      : '';
+
+    const finalPrompt = [
+      `Scene: ${image_prompt.trim()}`,
+      `Main Character: ${character_description || 'a young protagonist'} (${emotion || 'neutral'})`,
+      formattedSupporting,
+      audienceStyles[audience as keyof typeof audienceStyles] || ''
+    ].filter(Boolean).join('\n\n');
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log("🧠 Final DALL·E Prompt:", finalPrompt);
-      console.log("🎯 Audience:", audience);
-      console.log("👤 Character Description:", character_description);
-      console.log("🎭 Emotion:", emotion);
+      console.log('🎨 DALL·E Prompt Structure:', {
+        scene: image_prompt,
+        emotion,
+        character: character_description,
+        supporting_characters,
+        style: audienceStyles[audience as keyof typeof audienceStyles],
+        finalPrompt
+      });
     }
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
