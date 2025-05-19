@@ -21,10 +21,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-    const redirectUrl =
-      process.env.NODE_ENV === 'development'
-        ? 'http://localhost:3000/auth/callback'
-        : 'https://aistorybook.netlify.app/auth/callback';
+    const redirectUrl = `${window.location.origin}/auth/callback`;
 
     try {
       const { error } = await supabase.auth.signUp({
