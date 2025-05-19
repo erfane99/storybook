@@ -12,11 +12,11 @@ export async function POST(request: Request) {
 
     const audienceConfig = {
       children: { scenes: 10, pages: 4, notes: 'Simple, playful structure. 2–3 scenes per page.' },
-      young_adults: { scenes: 14, pages: 6, notes: '2–4 scenes per page with meaningful plot turns.' },
+      young_adults: { scenes: 14, pages: 6, notes: '2–3 scenes per page with meaningful plot turns.' },
       adults: { scenes: 18, pages: 8, notes: '3–5 scenes per page, allow complexity and layered meaning.' }
     };
 
-    const { scenes, pages, notes } = audienceConfig[audience] || audienceConfig.children;
+    const { scenes, pages, notes } = audienceConfig[audience as keyof typeof audienceConfig] || audienceConfig.children;
 
     const characterDesc = characterImage
       ? await describeCharacter(characterImage)
@@ -32,7 +32,7 @@ Your task is to:
 - Each scene must contain:
   - description: what is happening (1–2 sentences).
   - imagePrompt: a vivid and imaginative visual description (excluding the character's physical traits).
-  - emotion: the main character’s emotion (for backend use only).
+  - emotion: the main character's emotion (for backend use only).
 
 Use JSON format:
 {
