@@ -14,6 +14,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = getClientSupabase();
@@ -27,6 +28,7 @@ export function Navbar() {
         } else {
           setUser(null);
         }
+        setIsLoading(false);
       }
     );
 
@@ -37,6 +39,7 @@ export function Navbar() {
       } else {
         setUser(null);
       }
+      setIsLoading(false);
     });
 
     // Scroll detection
@@ -64,6 +67,11 @@ export function Navbar() {
     { href: '/pricing', label: 'Pricing' },
     { href: '/examples', label: 'Examples' },
   ];
+
+  // Don't render anything while checking auth status
+  if (isLoading) {
+    return null;
+  }
 
   const renderAuthButtons = () => {
     if (user) {
