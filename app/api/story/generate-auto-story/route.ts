@@ -12,17 +12,17 @@ interface RequestBody {
 }
 
 const genrePrompts = {
-  adventure: 'Create an exciting adventure story where the main character faces challenges and discovers new things.',
-  siblings: 'Write a heartwarming story about playing and sharing with siblings, perfect for young children.',
-  bedtime: 'Create a gentle, calming bedtime story that helps children wind down for sleep.',
-  fantasy: 'Write a magical fantasy story with enchanted elements and wonder.',
-  history: 'Create an educational story set in a historical period, making history come alive.',
+  adventure: 'Create an exciting adventure story filled with discovery, challenges to overcome, and personal growth.',
+  siblings: 'Write a heartwarming story about the joys and challenges of sibling relationships, focusing on sharing, understanding, and family bonds.',
+  bedtime: 'Create a gentle, soothing bedtime story with calming imagery and a peaceful resolution that helps children transition to sleep.',
+  fantasy: 'Craft a magical tale filled with wonder, enchantment, and imaginative elements that spark creativity.',
+  history: 'Tell an engaging historical story that brings the past to life while weaving in educational elements naturally.',
 };
 
 const audiencePrompts = {
-  children: 'Use simple language, short sentences, and positive themes. Focus on fun, learning, and friendship.',
-  young_adults: 'Include more complex themes, character development, and engaging dialogue. Balance entertainment with meaningful messages.',
-  adults: 'Incorporate sophisticated themes, nuanced character interactions, and deeper narrative layers.',
+  children: 'Use clear, engaging language with short sentences and positive themes. Include repetitive elements, simple morals, and opportunities for interaction.',
+  young_adults: 'Incorporate deeper themes, character growth, and engaging dialogue while maintaining a balance of entertainment and meaningful messages.',
+  adults: 'Weave sophisticated themes and complex character relationships into a narrative that resonates with mature readers.',
 };
 
 export async function POST(req: Request) {
@@ -43,6 +43,30 @@ export async function POST(req: Request) {
       );
     }
 
+    const storyPrompt = `You are a professional children's story writer crafting a high-quality, imaginative, and emotionally engaging story in the ${genre} genre.
+This story is for a ${audience} audience and will be turned into a cartoon storybook with illustrations.
+
+The main character is described as follows:
+"${characterDescription}"
+
+✨ Story Guidelines:
+- Use descriptive language that matches the visual traits of the character
+- Keep the character's appearance, personality, and role consistent throughout
+- Include rich sensory details that can be illustrated
+- Create 5-8 distinct visual scenes that flow naturally
+- Build emotional connection through character reactions and feelings
+- Include meaningful dialogue that reveals character
+- Maintain a clear story arc: setup, challenge/conflict, resolution
+- End with emotional satisfaction appropriate for ${audience} audience
+
+Genre-specific guidance:
+${genrePrompts[genre as keyof typeof genrePrompts]}
+
+Audience-specific requirements:
+${audiencePrompts[audience as keyof typeof audiencePrompts]}
+
+✍️ Write a cohesive story (300-500 words) that brings this character to life in an engaging way. Focus on creating vivid scenes that will translate well to illustrations.`;
+
     // Generate the story using GPT-4
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -55,28 +79,14 @@ export async function POST(req: Request) {
         messages: [
           {
             role: 'system',
-            content: `You are a professional children's book author. Create a story (300-500 words) based on these requirements:
-
-Genre: ${genrePrompts[genre as keyof typeof genrePrompts]}
-
-Main Character: ${characterDescription}
-
-Audience: ${audiencePrompts[audience as keyof typeof audiencePrompts]}
-
-Guidelines:
-- Make the story engaging and appropriate for the target audience
-- Include clear story structure (beginning, middle, end)
-- Create opportunities for visual scenes
-- Use descriptive language that can be illustrated
-- Keep paragraphs short and readable
-- Include dialogue where appropriate`
+            content: storyPrompt
           },
           {
             role: 'user',
-            content: 'Generate the story now.'
+            content: 'Generate a story following the provided guidelines.'
           }
         ],
-        temperature: 0.7,
+        temperature: 0.8,
         max_tokens: 1000,
       }),
     });
