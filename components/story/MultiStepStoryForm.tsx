@@ -24,7 +24,7 @@ export interface StoryFormData {
   imageUrl?: string;
   cartoonizedUrl?: string;
   characterDescription?: string;
-  storyMode?: 'manual' | 'auto';
+  storyMode: 'manual' | 'auto';
   selectedGenre?: string;
 }
 
@@ -62,7 +62,29 @@ export function MultiStepStoryForm() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      if (formData.storyMode === 'manual') {
+      if (formData.storyMode === 'auto') {
+        // Handle auto story generation
+        const response = await fetch('/api/story/generate-auto-story', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            genre: formData.selectedGenre,
+            characterDescription: formData.characterDescription,
+            cartoonImageUrl: formData.cartoonizedUrl,
+            audience: formData.audience,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate story');
+        }
+
+        const { storybookId } = await response.json();
+        router.push(`/storybook/preview?id=${storybookId}`);
+      } else {
+        // Handle manual story creation
         const response = await fetch('/api/story/generate-scenes', {
           method: 'POST',
           headers: {
@@ -145,6 +167,10 @@ export function MultiStepStoryForm() {
           <Step5_Story
             value={formData.story}
             onChange={(story) => updateFormData({ story })}
+            storyMode={formData.storyMode}
+            selectedGenre={formData.selectedGenre}
+            onModeChange={(mode) => updateFormData({ storyMode: mode })}
+            onGenreChange={(genre) => updateFormData({ selectedGenre: genre })}
           />
         );
       case 7:
@@ -167,7 +193,9 @@ export function MultiStepStoryForm() {
       case 5:
         return !formData.audience;
       case 6:
-        return formData.storyMode === 'manual' ? !formData.story.trim() : !formData.selectedGenre;
+        return formData.storyMode === 'manual' 
+          ? !formData.story.trim() 
+          : !formData.selectedGenre;
       default:
         return false;
     }

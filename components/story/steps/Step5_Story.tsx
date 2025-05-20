@@ -6,14 +6,16 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand as Magic, PencilLine } from 'lucide-react';
+import { Wand2, PencilLine } from 'lucide-react';
 
 interface Step5_StoryProps {
   value: string;
   onChange: (value: string) => void;
+  storyMode: 'manual' | 'auto';
+  selectedGenre?: string;
+  onModeChange: (mode: 'manual' | 'auto') => void;
+  onGenreChange: (genre: string) => void;
 }
-
-type StoryMode = 'manual' | 'auto';
 
 const genres = [
   { value: 'adventure', label: 'Adventure', description: 'An exciting journey filled with challenges and discoveries' },
@@ -23,12 +25,16 @@ const genres = [
   { value: 'history', label: 'History', description: 'Educational stories from the past' },
 ];
 
-export function Step5_Story({ value, onChange }: Step5_StoryProps) {
-  const [storyMode, setStoryMode] = useState<StoryMode>('manual');
-  const [selectedGenre, setSelectedGenre] = useState<string>('');
-
-  const handleModeChange = (newMode: StoryMode) => {
-    setStoryMode(newMode);
+export function Step5_Story({ 
+  value, 
+  onChange, 
+  storyMode, 
+  selectedGenre, 
+  onModeChange, 
+  onGenreChange 
+}: Step5_StoryProps) {
+  const handleModeChange = (newMode: 'manual' | 'auto') => {
+    onModeChange(newMode);
     if (newMode === 'auto') {
       // Clear the story text when switching to auto mode
       onChange('');
@@ -46,7 +52,7 @@ export function Step5_Story({ value, onChange }: Step5_StoryProps) {
 
       <RadioGroup
         value={storyMode}
-        onValueChange={(value: StoryMode) => handleModeChange(value)}
+        onValueChange={handleModeChange}
         className="grid gap-4"
       >
         <Card className={`cursor-pointer transition-all ${storyMode === 'manual' ? 'ring-2 ring-primary' : ''}`}>
@@ -72,7 +78,7 @@ export function Step5_Story({ value, onChange }: Step5_StoryProps) {
               <RadioGroupItem value="auto" id="auto" className="mt-1" />
               <div className="flex-1">
                 <Label htmlFor="auto" className="flex items-center gap-2 font-medium text-lg cursor-pointer">
-                  <Magic className="h-5 w-5" />
+                  <Wand2 className="h-5 w-5" />
                   Help me write it!
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -87,7 +93,7 @@ export function Step5_Story({ value, onChange }: Step5_StoryProps) {
       {storyMode === 'auto' && (
         <div className="space-y-2">
           <Label htmlFor="genre">Choose a story genre</Label>
-          <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+          <Select value={selectedGenre} onValueChange={onGenreChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select a genre" />
             </SelectTrigger>
