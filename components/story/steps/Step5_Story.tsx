@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Magnet as Magic, PencilLine } from 'lucide-react';
+import { Wand as Magic, PencilLine } from 'lucide-react';
 
 interface Step5_StoryProps {
   value: string;
