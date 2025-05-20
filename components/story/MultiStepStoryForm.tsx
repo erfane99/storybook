@@ -23,6 +23,9 @@ export interface StoryFormData {
   story: string;
   imageUrl?: string;
   cartoonizedUrl?: string;
+  characterDescription?: string;
+  storyMode?: 'manual' | 'auto';
+  selectedGenre?: string;
 }
 
 export function MultiStepStoryForm() {
@@ -34,6 +37,7 @@ export function MultiStepStoryForm() {
     cartoonStyle: '',
     audience: 'children',
     story: '',
+    storyMode: 'manual',
   });
 
   const router = useRouter();
@@ -58,50 +62,49 @@ export function MultiStepStoryForm() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/story/generate-scenes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          story: formData.story,
-          characterImage: formData.cartoonizedUrl,
-          audience: formData.audience,
-        }),
-      });
+      if (formData.storyMode === 'manual') {
+        const response = await fetch('/api/story/generate-scenes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            story: formData.story,
+            characterImage: formData.cartoonizedUrl,
+            audience: formData.audience,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate scenes');
+        if (!response.ok) {
+          throw new Error('Failed to generate scenes');
+        }
+
+        const { scenesText } = await response.json();
+        const { pages } = JSON.parse(scenesText);
+
+        const createResponse = await fetch('/api/story/create-storybook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            story: formData.story,
+            characterImage: formData.cartoonizedUrl,
+            pages,
+            audience: formData.audience,
+            isReusedImage: true,
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to create storybook');
+        }
+
+        const data = await createResponse.json();
+        sessionStorage.setItem('storybook-data', JSON.stringify(data));
+        router.push('/storybook/preview');
       }
-
-      const { scenesText } = await response.json();
-      const { pages } = JSON.parse(scenesText);
-
-      const user_id = localStorage.getItem('user_id') || null;
-
-      const createResponse = await fetch('/api/story/create-storybook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          story: formData.story,
-          characterImage: formData.cartoonizedUrl,
-          pages,
-          audience: formData.audience,
-          user_id,
-          isReusedImage: true,
-        }),
-      });
-
-      if (!createResponse.ok) {
-        throw new Error('Failed to create storybook');
-      }
-
-      const data = await createResponse.json();
-      sessionStorage.setItem('storybook-data', JSON.stringify(data));
-      router.push('/storybook/preview');
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -138,7 +141,12 @@ export function MultiStepStoryForm() {
       case 5:
         return <Step4_Audience value={formData.audience} onChange={(audience) => updateFormData({ audience })} />;
       case 6:
-        return <Step5_Story value={formData.story} onChange={(story) => updateFormData({ story })} />;
+        return (
+          <Step5_Story
+            value={formData.story}
+            onChange={(story) => updateFormData({ story })}
+          />
+        );
       case 7:
         return <Step6_Confirmation formData={formData} />;
       default:
@@ -159,7 +167,7 @@ export function MultiStepStoryForm() {
       case 5:
         return !formData.audience;
       case 6:
-        return !formData.story.trim();
+        return formData.storyMode === 'manual' ? !formData.story.trim() : !formData.selectedGenre;
       default:
         return false;
     }
