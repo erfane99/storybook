@@ -89,42 +89,14 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <div className="grid grid-cols-3 gap-4 p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm rounded-2xl shadow-xl">
-                <div className="aspect-square relative rounded-lg overflow-hidden">
+              <div className="relative p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm rounded-2xl shadow-xl">
+                <div className="relative w-full aspect-[4/3] overflow-hidden rounded-xl">
                   <Image
-                    src="https://images.pexels.com/photos/3771662/pexels-photo-3771662.jpeg"
-                    alt="Original photo"
-                    width={300}
-                    height={300}
+                    src="/mock-images/hero-storybook-mirror.png"
+                    alt="Magical cartoon storybook preview"
+                    fill
                     className="object-cover"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 text-center">
-                    Original
-                  </div>
-                </div>
-                <div className="aspect-square relative rounded-lg overflow-hidden">
-                  <Image
-                    src="https://images.pexels.com/photos/5239617/pexels-photo-5239617.jpeg"
-                    alt="Cartoon illustration"
-                    width={300}
-                    height={300}
-                    className="object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 text-center">
-                    Illustrated
-                  </div>
-                </div>
-                <div className="aspect-square relative rounded-lg overflow-hidden">
-                  <Image
-                    src="https://images.pexels.com/photos/4143791/pexels-photo-4143791.jpeg"
-                    alt="Story page"
-                    width={300}
-                    height={300}
-                    className="object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 text-center">
-                    Story Page
-                  </div>
                 </div>
               </div>
 
