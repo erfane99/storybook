@@ -14,6 +14,7 @@ import { Step5_Story } from './steps/Step5_Story';
 import { Step6_Confirmation } from './steps/Step6_Confirmation';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
+import { getClientSupabase } from '@/lib/supabase/client';
 
 export interface StoryFormData {
   title: string;
@@ -42,6 +43,7 @@ export function MultiStepStoryForm() {
 
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = getClientSupabase();
 
   const updateFormData = (data: Partial<StoryFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -62,7 +64,21 @@ export function MultiStepStoryForm() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (formData.storyMode === 'auto') {
+        // Check if user is authenticated for auto mode
+        if (!session?.user) {
+          toast({
+            variant: 'destructive',
+            title: 'Authentication Required',
+            description: 'Please sign in to generate an automatic story.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         // Handle auto story generation
         const response = await fetch('/api/story/generate-auto-story', {
           method: 'POST',
@@ -74,6 +90,7 @@ export function MultiStepStoryForm() {
             characterDescription: formData.characterDescription,
             cartoonImageUrl: formData.cartoonizedUrl,
             audience: formData.audience,
+            user_id: session.user.id,
           }),
         });
 
@@ -116,6 +133,7 @@ export function MultiStepStoryForm() {
             pages,
             audience: formData.audience,
             isReusedImage: true,
+            user_id: session?.user?.id,
           }),
         });
 
