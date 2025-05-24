@@ -52,6 +52,21 @@ export async function POST(request: Request) {
     if (!Array.isArray(pages) || pages.length === 0) return NextResponse.json({ error: 'At least one page is required' }, { status: 400 });
     if (!characterImage) return NextResponse.json({ error: 'Character image is required' }, { status: 400 });
 
+    // Check if user has already created a storybook
+    if (user?.id) {
+      const { count } = await supabase
+        .from('storybook_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (count && count > 0) {
+        return NextResponse.json(
+          { error: "You've already created your free storybook. Upgrade to unlock more." },
+          { status: 403 }
+        );
+      }
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : 'http://localhost:3000';

@@ -95,7 +95,17 @@ export function MultiStepStoryForm() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to generate story');
+          const errorData = await response.json();
+          if (response.status === 403) {
+            toast({
+              variant: 'destructive',
+              title: 'Free Story Limit Reached',
+              description: errorData.error || "You've already created your free storybook. Upgrade to unlock more.",
+            });
+            setIsSubmitting(false);
+            return;
+          }
+          throw new Error(errorData.error || 'Failed to generate story');
         }
 
         const { storybookId } = await response.json();
@@ -138,6 +148,16 @@ export function MultiStepStoryForm() {
         });
 
         if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          if (createResponse.status === 403) {
+            toast({
+              variant: 'destructive',
+              title: 'Free Story Limit Reached',
+              description: errorData.error || "You've already created your free storybook. Upgrade to unlock more.",
+            });
+            setIsSubmitting(false);
+            return;
+          }
           throw new Error('Failed to create storybook');
         }
 
