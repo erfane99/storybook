@@ -150,7 +150,9 @@ export function Step6_Confirmation({ formData, isSubmitting }: Step6_Confirmatio
                 <div>
                   <p className="font-medium">Selected Genre</p>
                   <p className="text-muted-foreground">
-                    {formData.selectedGenre?.charAt(0).toUpperCase() + formData.selectedGenre?.slice(1)}
+                    {formData.selectedGenre
+                      ? formData.selectedGenre.charAt(0).toUpperCase() + formData.selectedGenre.slice(1)
+                      : 'N/A'}
                   </p>
                 </div>
               )}
