@@ -41,9 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         try {
-          // Fetch user profile
           const { data: profileData, error: profileError } = await supabase
-            .from('users')
+            .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -59,7 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(profileData);
             setUser(session.user);
 
-            // Redirect new users to create page
             if (profileData.onboarding_step === 'not_started') {
               router.push('/create');
             }
@@ -84,12 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateOnboardingStep = async (step: Profile['onboarding_step']) => {
     try {
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ onboarding_step: step })
         .eq('id', user.id);
 
       if (error) throw error;
-
       setProfile(prev => prev ? { ...prev, onboarding_step: step } : null);
     } catch (error: any) {
       toast({
@@ -105,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user || !progress) return;
 
     try {
-      // Save story
       const { data: storyData, error: storyError } = await supabase
         .from('stories')
         .insert({
@@ -118,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storyError) throw storyError;
 
-      // Save scenes
       if (progress.scenes.length > 0) {
         const scenesData = progress.scenes.map((scene, index) => ({
           story_id: storyData.id,
@@ -134,12 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (scenesError) throw scenesError;
       }
 
-      // Update onboarding step
       await updateOnboardingStep('story_created');
-
-      // Clear anonymous progress after successful save
       clearProgress();
-
       toast({
         title: 'Success',
         description: 'Your story has been saved to your account!',
@@ -177,14 +168,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      
+
       if (error) throw error;
 
       const user = data?.user;
       if (user) {
-        // Create user profile
         const { error: profileError } = await supabase
-          .from('users')
+          .from('profiles')
           .insert([{
             id: user.id,
             email: user.email,
