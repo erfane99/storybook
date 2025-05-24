@@ -47,7 +47,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', session.user.id)
             .single();
 
-          if (profileError) {
+          if (!profileData && !profileError) {
+            // Create new profile if it doesn't exist
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                email: session.user.email,
+                onboarding_step: 'not_started'
+              });
+
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Failed to create user profile',
+              });
+            } else {
+              // Fetch the newly created profile
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+                
+              setProfile(newProfile);
+              setUser(session.user);
+
+              if (newProfile?.onboarding_step === 'not_started') {
+                router.push('/create');
+              }
+            }
+          } else if (profileError) {
             console.error('Error fetching profile:', profileError);
             toast({
               variant: 'destructive',
