@@ -108,7 +108,7 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+      <section id="how-it-works" className="py-24 bg-gradient-to-b from-[#fdf5ff] to-[#faf4ff] dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -122,22 +122,22 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               {
                 icon: <Upload className="h-8 w-8" />,
-                title: "Upload Your Photo",
-                description: "Start with any photo you'd like to feature in your story"
+                title: "1. Start With a Photo",
+                description: "Choose a picture of you or someone you love"
               },
               {
                 icon: <PencilRuler className="h-8 w-8" />,
-                title: "Write Your Story",
-                description: "Create your narrative or let our AI help you craft the perfect tale"
+                title: "2. Write or Let Us Write",
+                description: "Craft a story yourself, or let our AI do the magic"
               },
               {
                 icon: <Wand2 className="h-8 w-8" />,
-                title: "Get Your Storybook",
-                description: "Watch as AI transforms your story into a beautiful illustrated book"
+                title: "3. Get a Magical Storybook",
+                description: "See your photo become a hero in an illustrated adventure"
               }
             ].map((step, index) => (
               <motion.div
@@ -147,9 +147,9 @@ export default function Home() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
               >
-                <Card className="relative h-full bg-white/50 dark:bg-black/50 backdrop-blur-sm hover:shadow-xl transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="mb-4 p-3 bg-primary/10 rounded-lg w-fit">
+                <Card className="h-full bg-white/50 dark:bg-black/50 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
+                  <CardContent className="p-6 text-center">
+                    <div className="mb-4 p-3 bg-primary/10 rounded-lg w-fit mx-auto">
                       {step.icon}
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
@@ -159,6 +159,22 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mt-16"
+          >
+            <p className="text-xl font-bold mb-6">Ready to see yourself in a story?</p>
+            <Button
+              size="lg"
+              onClick={() => router.push('/create')}
+              className="text-lg px-8"
+            >
+              Create Your Storybook
+            </Button>
+          </motion.div>
         </div>
       </section>
 
