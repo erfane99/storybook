@@ -5,19 +5,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 
 const steps = [
-  { 
+  {
     image: '/mock-images/how-it-works-step1.png',
-    title: 'Upload Your Photo', 
-    description: 'Start by uploading your favorite photos that you'd like to feature in your story.',
+    title: 'Upload Your Photo',
+    description: 'Start by uploading your favorite photos that you\'d like to feature in your story.',
   },
-  { 
+  {
     image: '/mock-images/how-it-works-step2.png',
-    title: 'Write or Let Us Write', 
+    title: 'Write or Let Us Write',
     description: 'Let your creativity flow! Write your story and our AI will help make it magical.',
   },
-  { 
+  {
     image: '/mock-images/how-it-works-step3.png',
-    title: 'Get Your Magical Storybook', 
+    title: 'Get Your Magical Storybook',
     description: 'Watch as our AI transforms your story into a beautiful cartoon adventure.',
   }
 ];
@@ -45,7 +45,7 @@ const itemVariants = {
 
 export function HowItWorksSection() {
   return (
-    <section className="py-8">
+    <section className="py-16 bg-white/70 dark:bg-black/40 backdrop-blur-sm">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
           Create Your Story in 3 Easy Steps
@@ -60,17 +60,18 @@ export function HowItWorksSection() {
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
-        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-8 md:grid-cols-3"
       >
         {steps.map((step, index) => (
           <motion.div key={step.title} variants={itemVariants}>
-            <Card className="h-full transform transition-transform hover:scale-105">
-              <CardContent className="pt-6">
-                <div className="aspect-square relative rounded-xl overflow-hidden mb-6">
+            <Card className="h-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition">
+              <CardContent className="p-6">
+                <div className="relative w-full aspect-square mb-4 rounded-lg overflow-hidden">
                   <Image
                     src={step.image}
                     alt={step.title}
                     fill
+                    unoptimized
                     className="object-cover"
                     priority={index === 0}
                   />
