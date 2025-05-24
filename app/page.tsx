@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Upload, PencilRuler, Wand2, Star, Sparkles } from 'lucide-react';
 import Image from 'next/image';
-import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
+import { HowItWorksSection } from '@/components/landing/how-it-works-section';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
