@@ -3,17 +3,18 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryFormData } from '../MultiStepStoryForm';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { getClientSupabase } from '@/lib/supabase/client';
+import { motion } from 'framer-motion';
 
 interface Step6_ConfirmationProps {
   formData: StoryFormData;
+  isSubmitting: boolean;
 }
 
-export function Step6_Confirmation({ formData }: Step6_ConfirmationProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
+export function Step6_Confirmation({ formData, isSubmitting }: Step6_ConfirmationProps) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = getClientSupabase();
@@ -32,47 +33,62 @@ export function Step6_Confirmation({ formData }: Step6_ConfirmationProps) {
     'anime': 'Anime'
   };
 
-  const handleAutoGenerate = async () => {
-    try {
-      setIsGenerating(true);
-
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      const user_id = session?.user?.id;
-
-      const response = await fetch('/api/story/generate-auto-story', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          genre: formData.selectedGenre,
-          characterDescription: formData.characterDescription,
-          cartoonImageUrl: formData.cartoonizedUrl,
-          audience: formData.audience,
-          user_id,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate story');
-      }
-
-      const { storybookId } = await response.json();
-      router.push(`/storybook/preview?id=${storybookId}`);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to generate story',
-      });
-      setIsGenerating(false);
-    }
-  };
-
   // Determine if we're in auto mode
   const isAutoMode = formData.storyMode === 'auto';
+
+  if (isSubmitting) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center text-center space-y-6 py-8"
+      >
+        <motion.div
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotate: [0, 5, -5, 0]
+          }}
+          transition={{ 
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="relative"
+        >
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+          <Wand2 className="h-16 w-16 text-primary relative z-10" />
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h3 className="text-2xl font-bold mb-2">
+            {isAutoMode ? 'Creating Your Magical Story' : 'Bringing Your Story to Life'}
+          </h3>
+          <p className="text-muted-foreground">
+            {isAutoMode 
+              ? 'Our storytelling wizards are crafting a unique tale just for you...' 
+              : 'Transforming your story into a beautiful illustrated book...'}
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-col items-center space-y-4"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4" />
+            <span>This may take a few moments</span>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -134,7 +150,7 @@ export function Step6_Confirmation({ formData }: Step6_ConfirmationProps) {
                 <div>
                   <p className="font-medium">Selected Genre</p>
                   <p className="text-muted-foreground">
-                    {formData.selectedGenre.charAt(0).toUpperCase() + formData.selectedGenre.slice(1)}
+                    {formData.selectedGenre?.charAt(0).toUpperCase() + formData.selectedGenre?.slice(1)}
                   </p>
                 </div>
               )}
@@ -156,11 +172,7 @@ export function Step6_Confirmation({ formData }: Step6_ConfirmationProps) {
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-start space-x-3">
-              {isGenerating ? (
-                <Loader2 className="h-5 w-5 text-primary animate-spin mt-0.5" />
-              ) : (
-                <Check className="h-5 w-5 text-primary mt-0.5" />
-              )}
+              <Check className="h-5 w-5 text-primary mt-0.5" />
               <p className="text-sm">
                 {isAutoMode ? (
                   'Your story will be generated using AI based on your selected genre and character. Each scene will be carefully crafted to match your cartoonized character.'

@@ -151,7 +151,6 @@ export function MultiStepStoryForm() {
         title: 'Error',
         description: error.message || 'Failed to create storybook',
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -192,7 +191,7 @@ export function MultiStepStoryForm() {
           />
         );
       case 7:
-        return <Step6_Confirmation formData={formData} />;
+        return <Step6_Confirmation formData={formData} isSubmitting={isSubmitting} />;
       default:
         return null;
     }
