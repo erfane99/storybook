@@ -71,7 +71,7 @@ const audienceConfig = {
       - Exploration of relationships and identity
       - Nuanced character development
       - Meaningful resolution that allows for reflection`,
-    wordCount: '400-600',
+    wordCount: '600-800',
     scenes: '8-12'
   },
   adults: {
@@ -97,7 +97,7 @@ const audienceConfig = {
       - Sophisticated relationship dynamics
       - Nuanced emotional resolution
       - Room for interpretation and reflection`,
-    wordCount: '500-800',
+    wordCount: '800-1200',
     scenes: '10-15'
   }
 };
@@ -165,7 +165,7 @@ ${config.prompt}
           }
         ],
         temperature: 0.8,
-        max_tokens: 1500,
+        max_tokens: 2000,
       }),
     });
 
