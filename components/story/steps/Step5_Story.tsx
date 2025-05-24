@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand2, PencilLine } from 'lucide-react';
+import { Wand2, PencilLine, Rocket, Users, Moon, Sparkles, BookOpen } from 'lucide-react';
 
 interface Step5_StoryProps {
   value: string;
@@ -18,11 +17,41 @@ interface Step5_StoryProps {
 }
 
 const genres = [
-  { value: 'adventure', label: 'Adventure', description: 'An exciting journey filled with challenges and discoveries' },
-  { value: 'siblings', label: 'Playing with Siblings', description: 'Fun stories about family bonding and sharing', audience: 'children' },
-  { value: 'bedtime', label: 'Going to Sleep', description: 'Calming bedtime stories for peaceful nights', audience: 'children' },
-  { value: 'fantasy', label: 'Fantasy/Sci-Fi', description: 'Magical worlds and futuristic adventures' },
-  { value: 'history', label: 'History', description: 'Educational stories from the past' },
+  { 
+    value: 'adventure', 
+    label: 'Adventure', 
+    description: 'An exciting journey filled with challenges and discoveries',
+    icon: Rocket,
+    audience: 'all'
+  },
+  { 
+    value: 'siblings', 
+    label: 'Playing with Siblings', 
+    description: 'Fun stories about family bonding and sharing',
+    icon: Users,
+    audience: 'children'
+  },
+  { 
+    value: 'bedtime', 
+    label: 'Going to Sleep', 
+    description: 'Calming bedtime stories for peaceful nights',
+    icon: Moon,
+    audience: 'children'
+  },
+  { 
+    value: 'fantasy', 
+    label: 'Fantasy/Sci-Fi', 
+    description: 'Magical worlds and futuristic adventures',
+    icon: Sparkles,
+    audience: 'all'
+  },
+  { 
+    value: 'history', 
+    label: 'History', 
+    description: 'Educational stories from the past',
+    icon: BookOpen,
+    audience: 'all'
+  }
 ];
 
 export function Step5_Story({ 
@@ -91,23 +120,37 @@ export function Step5_Story({
       </RadioGroup>
 
       {storyMode === 'auto' && (
-        <div className="space-y-2">
-          <Label htmlFor="genre">Choose a story genre</Label>
-          <Select value={selectedGenre} onValueChange={onGenreChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a genre" />
-            </SelectTrigger>
-            <SelectContent>
-              {genres.map((genre) => (
-                <SelectItem key={genre.value} value={genre.value}>
-                  <div>
-                    <div className="font-medium">{genre.label}</div>
-                    <div className="text-xs text-muted-foreground">{genre.description}</div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-4">
+          <Label>Choose a story genre</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {genres.map((genre) => {
+              const Icon = genre.icon;
+              return (
+                <Card
+                  key={genre.value}
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    selectedGenre === genre.value ? 'ring-2 ring-primary bg-primary/5' : ''
+                  }`}
+                  onClick={() => onGenreChange(genre.value)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                        <Icon className="h-6 w-6 text-primary" />
+                      </div>
+                      <h4 className="font-semibold mb-1">{genre.label}</h4>
+                      <p className="text-sm text-muted-foreground">{genre.description}</p>
+                      {genre.audience === 'children' && (
+                        <span className="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          For Children
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
 
