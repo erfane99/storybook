@@ -7,9 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowLeft, Download, Lock, Share2 } from 'lucide-react';
+import { ArrowLeft, Download, Lock, Share2, Loader2 } from 'lucide-react'; // ✅ FIXED HERE
 import { getClientSupabase } from '@/lib/supabase/client';
-import { Loader2 } from 'lucide-react';
 
 interface Scene {
   description: string;
