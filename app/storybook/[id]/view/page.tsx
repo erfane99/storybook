@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { ArrowLeft, Download, Lock, Share2 } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 interface Scene {
   description: string;
