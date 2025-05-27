@@ -43,6 +43,7 @@ export default function RegisterPage() {
     label: 'Too Weak', 
     color: 'bg-red-500' 
   });
+
   const router = useRouter();
   const { toast } = useToast();
   const supabase = getClientSupabase();
@@ -60,27 +61,17 @@ export default function RegisterPage() {
         setCheckingSession(false);
       }
     };
-
     checkSession();
   }, [router, supabase.auth]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
-      setEmailValidation({
-        isValid: false,
-        message: 'Email is required'
-      });
+      setEmailValidation({ isValid: false, message: 'Email is required' });
     } else if (!emailRegex.test(email)) {
-      setEmailValidation({
-        isValid: false,
-        message: 'Please enter a valid email address'
-      });
+      setEmailValidation({ isValid: false, message: 'Please enter a valid email address' });
     } else {
-      setEmailValidation({
-        isValid: true,
-        message: 'Email format is valid'
-      });
+      setEmailValidation({ isValid: true, message: 'Email format is valid' });
     }
   };
 
@@ -92,40 +83,30 @@ export default function RegisterPage() {
       { met: /[0-9]/.test(password), text: 'One number' },
       { met: /[^A-Za-z0-9]/.test(password), text: 'One special character' }
     ];
-
-    const unmetRequirements = requirements
-      .filter(req => !req.met)
-      .map(req => req.text);
-
+    const unmet = requirements.filter(r => !r.met).map(r => r.text);
     setPasswordValidation({
-      isValid: unmetRequirements.length === 0,
-      message: unmetRequirements.length > 0 
-        ? `Missing: ${unmetRequirements.join(', ')}` 
-        : 'Password meets all requirements'
+      isValid: unmet.length === 0,
+      message: unmet.length > 0 ? `Missing: ${unmet.join(', ')}` : 'Password meets all requirements'
     });
   };
 
   const checkPasswordStrength = (password: string) => {
     let score = 0;
-    
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
     if (/[A-Z]/.test(password)) score++;
     if (/[a-z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
-
     const strengths: PasswordStrength[] = [
       { score: 0, label: 'Too Weak', color: 'bg-red-500' },
       { score: 2, label: 'Weak', color: 'bg-orange-500' },
       { score: 4, label: 'Medium', color: 'bg-yellow-500' },
       { score: 6, label: 'Strong', color: 'bg-green-500' }
     ];
-
-    const passwordStrength = strengths.reduce((prev, curr) => 
+    const passwordStrength = strengths.reduce((prev, curr) =>
       score >= curr.score ? curr : prev
     );
-
     setStrength(passwordStrength);
   };
 
@@ -146,32 +127,35 @@ export default function RegisterPage() {
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
-
-    // Dismiss any existing toasts
     toast.dismiss();
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: redirectUrl,
-        },
+        options: { emailRedirectTo: redirectUrl }
       });
 
       if (error) throw error;
 
-      // Only show success toast if no errors occurred
+      // ✅ Insert profile
+      if (data.user?.id) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          user_id: data.user.id,
+          user_type: 'user'
+        });
+        if (profileError) throw new Error('Profile creation failed: ' + profileError.message);
+      }
+
       toast({
         title: 'Welcome to StoryCanvas!',
-        description: 'Please check your email to continue.',
+        description: 'Please check your email to continue.'
       });
 
       router.push('/auth/verify-email');
     } catch (error: any) {
-      // Dismiss any existing toasts before showing error
       toast.dismiss();
       toast({
         variant: 'destructive',
@@ -205,6 +189,7 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -221,28 +206,23 @@ export default function RegisterPage() {
                 email && (emailValidation.isValid ? 'border-green-500' : 'border-red-500')
               }`}
             />
-            <p className="text-sm text-muted-foreground">
-              We'll never share your email with anyone else
-            </p>
+            <p className="text-sm text-muted-foreground">We'll never share your email with anyone else</p>
             {email && (
-              <p 
-                id="email-validation"
-                className={`text-sm ${
-                  emailValidation.isValid ? 'text-green-600' : 'text-red-600'
-                }`}
-                aria-live="polite"
-              >
+              <p id="email-validation" className={`text-sm ${
+                emailValidation.isValid ? 'text-green-600' : 'text-red-600'
+              }`} aria-live="polite">
                 {emailValidation.message}
               </p>
             )}
           </div>
 
+          {/* Password */}
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Input
                 id="password"
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -262,11 +242,7 @@ export default function RegisterPage() {
                 disabled={isSubmitting}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -284,26 +260,19 @@ export default function RegisterPage() {
                     aria-valuenow={(strength.score / 6) * 100}
                   />
                 </div>
-                <p 
-                  id="password-strength"
-                  className={`text-sm ${strength.color.replace('bg-', 'text-')}`}
-                  aria-live="polite"
-                >
+                <p id="password-strength" className={`text-sm ${strength.color.replace('bg-', 'text-')}`} aria-live="polite">
                   Password Strength: {strength.label}
                 </p>
-                <p 
-                  id="password-validation"
-                  className={`text-sm ${
-                    passwordValidation.isValid ? 'text-green-600' : 'text-red-600'
-                  }`}
-                  aria-live="polite"
-                >
+                <p id="password-validation" className={`text-sm ${
+                  passwordValidation.isValid ? 'text-green-600' : 'text-red-600'
+                }`} aria-live="polite">
                   {passwordValidation.message}
                 </p>
               </div>
             )}
           </div>
 
+          {/* Terms */}
           <div className="space-y-2">
             <div className="flex items-start space-x-2">
               <Checkbox
@@ -316,34 +285,14 @@ export default function RegisterPage() {
                 disabled={isSubmitting}
                 aria-describedby="terms-error"
               />
-              <label
-                htmlFor="terms"
-                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
+              <label htmlFor="terms" className="text-sm leading-none">
                 I agree to the{' '}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  className="text-primary hover:underline"
-                >
-                  Terms
-                </a>
-                {' '}and{' '}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  className="text-primary hover:underline"
-                >
-                  Privacy Policy
-                </a>
+                <a href="/terms" target="_blank" className="text-primary hover:underline">Terms</a> and{' '}
+                <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a>
               </label>
             </div>
             {showTermsError && (
-              <p 
-                id="terms-error"
-                className="text-sm text-red-600"
-                aria-live="polite"
-              >
+              <p id="terms-error" className="text-sm text-red-600" aria-live="polite">
                 Please accept the terms and privacy policy to continue
               </p>
             )}
@@ -369,10 +318,7 @@ export default function RegisterPage() {
         <div className="text-center text-sm">
           <p className="text-muted-foreground">
             Already have an account?{' '}
-            <Link
-              href="/auth/login"
-              className="text-primary hover:underline"
-            >
+            <Link href="/auth/login" className="text-primary hover:underline">
               Sign in
             </Link>
           </p>
