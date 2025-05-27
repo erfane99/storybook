@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -10,14 +10,36 @@ import Link from 'next/link';
 
 export default function VerifyEmailPage() {
   const [isResending, setIsResending] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const { toast } = useToast();
   const supabase = getClientSupabase();
 
+  useEffect(() => {
+    const getUserEmail = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUserEmail(session?.user?.email ?? null);
+    };
+    getUserEmail();
+  }, [supabase]);
+
   const handleResendEmail = async () => {
+    if (!userEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Email not found. Please log in again.',
+      });
+      return;
+    }
+
     setIsResending(true);
     try {
       const { error } = await supabase.auth.resend({
-        type: 'signup'
+        type: 'signup',
+        email: userEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (error) throw error;
@@ -81,7 +103,7 @@ export default function VerifyEmailPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <div className="text-center">
           <p className="text-sm">
             Changed your mind?{' '}
