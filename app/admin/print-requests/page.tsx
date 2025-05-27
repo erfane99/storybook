@@ -67,13 +67,13 @@ export default function PrintRequestsPage() {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: user } = await supabase
+        .from('users')
         .select('user_type')
         .eq('id', session.user.id)
         .single();
 
-      if (!profile || profile.user_type !== 'admin') {
+      if (!user || user.user_type !== 'admin') {
         router.push('/');
         toast({
           variant: 'destructive',
