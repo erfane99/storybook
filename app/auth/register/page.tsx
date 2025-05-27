@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 
 interface PasswordStrength {
@@ -87,11 +87,8 @@ export default function RegisterPage() {
   const checkPasswordStrength = (password: string) => {
     let score = 0;
     
-    // Length check
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
-    
-    // Character variety checks
     if (/[A-Z]/.test(password)) score++;
     if (/[a-z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
@@ -139,7 +136,7 @@ export default function RegisterPage() {
       if (error) throw error;
 
       toast({
-        title: 'Registration successful!',
+        title: 'Welcome to StoryCanvas!',
         description: 'Please check your email to continue.',
       });
 
@@ -158,10 +155,13 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Create an Account</h1>
-          <p className="text-muted-foreground mt-2">
-            Start creating magical storybooks today
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <Sparkles className="h-5 w-5" />
+            <h1 className="text-2xl font-bold">Let's Get You Started</h1>
+          </div>
+          <p className="text-muted-foreground">
+            Join our creative community and bring your stories to life
           </p>
         </div>
 
@@ -180,6 +180,9 @@ export default function RegisterPage() {
                 email && (emailValidation.isValid ? 'border-green-500' : 'border-red-500')
               }`}
             />
+            <p className="text-sm text-muted-foreground">
+              We'll never share your email with anyone else
+            </p>
             {email && (
               <p className={`text-sm ${
                 emailValidation.isValid ? 'text-green-600' : 'text-red-600'
@@ -219,6 +222,9 @@ export default function RegisterPage() {
                 )}
               </button>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Your password stays private — we store it securely encrypted
+            </p>
             {password && (
               <div className="space-y-2">
                 <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
@@ -247,10 +253,10 @@ export default function RegisterPage() {
             {isSubmitting ? (
               <span className="flex items-center justify-center">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating account...
+                Creating your account...
               </span>
             ) : (
-              'Create account'
+              'Join StoryCanvas'
             )}
           </Button>
         </form>
