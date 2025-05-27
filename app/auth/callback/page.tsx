@@ -13,22 +13,44 @@ export default function CallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession();
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        const next = url.searchParams.get('next') ?? '/';
 
-      if (error) {
+        if (!code) {
+          throw new Error('No code provided');
+        }
+
+        const { error } = await supabase.auth.exchangeCodeForSession({
+          code,
+          options: {
+            redirectTo: next
+          }
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: 'Welcome back!',
+          description: 'You\'re now logged in.',
+        });
+
+        // Delay for toast to be visible before redirect
+        setTimeout(() => {
+          router.push(next);
+        }, 1500); // 1.5 second delay
+      } catch (error: any) {
+        console.error('Auth callback error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Authentication failed',
+          description: error.message
+        });
         router.push('/auth/login');
-        return;
       }
-
-      toast({
-        title: 'Welcome back!',
-        description: 'You\'re now logged in.',
-      });
-
-      // Delay for toast to be visible before redirect
-      setTimeout(() => {
-        router.push('/');
-      }, 1500); // 1.5 second delay
     };
 
     handleCallback();
