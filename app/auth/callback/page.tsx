@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function CallbackPage() {
 
       toast({
         title: 'Welcome back!',
-        description: 'You’re now logged in.',
+        description: 'You're now logged in.',
       });
 
       // Delay for toast to be visible before redirect
