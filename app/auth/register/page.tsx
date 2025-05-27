@@ -93,6 +93,7 @@ export default function RegisterPage() {
     if (/[a-z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score > 6) score = 6;
     const strengths: PasswordStrength[] = [
       { score: 0, label: 'Too Weak', color: 'bg-red-500' },
       { score: 2, label: 'Weak', color: 'bg-orange-500' },
@@ -162,7 +163,7 @@ export default function RegisterPage() {
           </div>
           <p className="text-muted-foreground">Join our creative community and bring your stories to life</p>
         </div>
-        {/* Keep your form and remaining JSX here (unchanged) */}
+        {/* Your form and rest of JSX remains the same */}
       </div>
     </div>
   );
