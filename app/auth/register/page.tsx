@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,7 +45,6 @@ export default function RegisterPage() {
   });
 
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -149,17 +148,14 @@ export default function RegisterPage() {
         if (profileError) throw new Error('Profile creation failed: ' + profileError.message);
       }
 
-      toast({
-        title: 'Welcome to StoryCanvas!',
+      toast.success('Welcome to StoryCanvas!', {
         description: 'Please check your email to continue.'
       });
 
       router.push('/auth/verify-email');
     } catch (error: any) {
       toast.dismiss();
-      toast({
-        variant: 'destructive',
-        title: 'Registration failed',
+      toast.error('Registration failed', {
         description: error.message,
       });
     } finally {
