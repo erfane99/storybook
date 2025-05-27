@@ -16,11 +16,24 @@ interface PasswordStrength {
   color: string;
 }
 
+interface Validation {
+  isValid: boolean;
+  message: string;
+}
+
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailValidation, setEmailValidation] = useState<Validation>({
+    isValid: false,
+    message: ''
+  });
+  const [passwordValidation, setPasswordValidation] = useState<Validation>({
+    isValid: false,
+    message: ''
+  });
   const [strength, setStrength] = useState<PasswordStrength>({ 
     score: 0, 
     label: 'Too Weak', 
@@ -29,6 +42,47 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = getClientSupabase();
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      setEmailValidation({
+        isValid: false,
+        message: 'Email is required'
+      });
+    } else if (!emailRegex.test(email)) {
+      setEmailValidation({
+        isValid: false,
+        message: 'Please enter a valid email address'
+      });
+    } else {
+      setEmailValidation({
+        isValid: true,
+        message: 'Email format is valid'
+      });
+    }
+  };
+
+  const validatePassword = (password: string) => {
+    const requirements = [
+      { met: password.length >= 8, text: 'At least 8 characters' },
+      { met: /[A-Z]/.test(password), text: 'One uppercase letter' },
+      { met: /[a-z]/.test(password), text: 'One lowercase letter' },
+      { met: /[0-9]/.test(password), text: 'One number' },
+      { met: /[^A-Za-z0-9]/.test(password), text: 'One special character' }
+    ];
+
+    const unmetRequirements = requirements
+      .filter(req => !req.met)
+      .map(req => req.text);
+
+    setPasswordValidation({
+      isValid: unmetRequirements.length === 0,
+      message: unmetRequirements.length > 0 
+        ? `Missing: ${unmetRequirements.join(', ')}` 
+        : 'Password meets all requirements'
+    });
+  };
 
   const checkPasswordStrength = (password: string) => {
     let score = 0;
@@ -58,6 +112,11 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
+    validateEmail(email);
+  }, [email]);
+
+  useEffect(() => {
+    validatePassword(password);
     checkPasswordStrength(password);
   }, [password]);
 
@@ -117,7 +176,17 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className={`${
+                email && (emailValidation.isValid ? 'border-green-500' : 'border-red-500')
+              }`}
             />
+            {email && (
+              <p className={`text-sm ${
+                emailValidation.isValid ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {emailValidation.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -131,7 +200,9 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="pr-10"
+                className={`pr-10 ${
+                  password && (passwordValidation.isValid ? 'border-green-500' : 'border-red-500')
+                }`}
               />
               <button
                 type="button"
@@ -146,26 +217,30 @@ export default function RegisterPage() {
                 )}
               </button>
             </div>
-            <div className="space-y-1">
-              <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full ${strength.color} transition-all duration-300`}
-                  style={{ width: `${(strength.score / 6) * 100}%` }}
-                />
+            {password && (
+              <div className="space-y-2">
+                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full ${strength.color} transition-all duration-300`}
+                    style={{ width: `${(strength.score / 6) * 100}%` }}
+                  />
+                </div>
+                <p className={`text-sm ${strength.color.replace('bg-', 'text-')}`}>
+                  Password Strength: {strength.label}
+                </p>
+                <p className={`text-sm ${
+                  passwordValidation.isValid ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {passwordValidation.message}
+                </p>
               </div>
-              <p className={`text-sm ${strength.color.replace('bg-', 'text-')}`}>
-                Password Strength: {strength.label}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Use 8+ characters with a mix of letters, numbers & symbols
-            </p>
+            )}
           </div>
 
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || strength.score < 2}
+            disabled={loading || !emailValidation.isValid || !passwordValidation.isValid}
           >
             {loading ? 'Creating account...' : 'Create account'}
           </Button>
