@@ -22,12 +22,7 @@ export default function CallbackPage() {
           throw new Error('No code provided');
         }
 
-        const { error } = await supabase.auth.exchangeCodeForSession({
-          code,
-          options: {
-            redirectTo: next
-          }
-        });
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
 
         if (error) {
           throw error;
