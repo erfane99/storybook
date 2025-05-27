@@ -12,22 +12,18 @@ export default function CallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error || !session) {
-          router.push('/auth/login');
-          return;
-        }
+      const { error } = await supabase.auth.exchangeCodeForSession();
 
-        router.push('/dashboard');
-      } catch (err) {
+      if (error) {
         router.push('/auth/login');
+        return;
       }
+
+      router.push('/dashboard'); // Change this if you'd rather redirect to another page like '/library'
     };
 
     handleCallback();
-  }, [router, supabase.auth]);
+  }, [router, supabase]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
