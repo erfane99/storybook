@@ -204,7 +204,7 @@ export default function RegisterPage() {
             />
             <p className="text-sm text-muted-foreground">We'll never share your email with anyone else</p>
             {email && (
-              <p id="email-validation" className={`text-sm ${
+              <p id="email-validation\" className={`text-sm ${
                 emailValidation.isValid ? 'text-green-600' : 'text-red-600'
               }`} aria-live="polite">
                 {emailValidation.message}
