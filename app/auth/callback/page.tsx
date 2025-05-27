@@ -19,7 +19,7 @@ export default function CallbackPage() {
         return;
       }
 
-      router.push('/dashboard'); // Change this if you'd rather redirect to another page like '/library'
+      router.push('/'); // Redirect to homepage after login/confirmation
     };
 
     handleCallback();
