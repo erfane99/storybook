@@ -22,7 +22,7 @@ export default function CallbackPage() {
 
       toast({
         title: 'Welcome back!',
-        description: 'You're now logged in.',
+        description: 'You\'re now logged in.',
       });
 
       // Delay for toast to be visible before redirect
