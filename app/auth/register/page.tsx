@@ -38,7 +38,7 @@ export default function RegisterPage() {
   const [strength, setStrength] = useState<PasswordStrength>({ score: 0, label: 'Too Weak', color: 'bg-red-500' });
 
   const router = useRouter();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -93,7 +93,6 @@ export default function RegisterPage() {
     if (/[a-z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
-    if (score > 6) score = 6;
     const strengths: PasswordStrength[] = [
       { score: 0, label: 'Too Weak', color: 'bg-red-500' },
       { score: 2, label: 'Weak', color: 'bg-orange-500' },
@@ -115,7 +114,7 @@ export default function RegisterPage() {
     if (!passwordsMatch || isSubmitting) return;
 
     setIsSubmitting(true);
-    toast.dismiss();
+    dismiss();
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
@@ -138,7 +137,7 @@ export default function RegisterPage() {
       toast({ title: 'Welcome to StoryCanvas!', description: 'Please check your email to continue.' });
       router.push('/auth/verify-email');
     } catch (error: any) {
-      toast.dismiss();
+      dismiss();
       toast({ variant: 'destructive', title: 'Registration failed', description: error.message });
     } finally {
       setIsSubmitting(false);
@@ -163,7 +162,7 @@ export default function RegisterPage() {
           </div>
           <p className="text-muted-foreground">Join our creative community and bring your stories to life</p>
         </div>
-        {/* Your form and rest of JSX remains the same */}
+        {/* Keep your form and remaining JSX here (unchanged) */}
       </div>
     </div>
   );
