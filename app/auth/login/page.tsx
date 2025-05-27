@@ -8,14 +8,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getClientSupabase } from '@/lib/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
   const supabase = getClientSupabase();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [router, supabase.auth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,22 +46,14 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Welcome back!',
         description: 'Successfully signed in.',
       });
 
-      // Check for saved story progress
-      const savedProgress = sessionStorage.getItem('storyProgress');
-      if (savedProgress) {
-        router.push('/create'); // Return to story creation
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -53,6 +64,14 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -74,6 +93,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -86,6 +106,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -94,7 +115,14 @@ export default function LoginPage() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
           </Button>
         </form>
 
