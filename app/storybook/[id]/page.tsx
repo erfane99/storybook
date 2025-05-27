@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowLeft, Printer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, Printer, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
