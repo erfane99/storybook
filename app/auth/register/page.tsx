@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 
 interface PasswordStrength {
@@ -24,7 +24,7 @@ interface Validation {
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailValidation, setEmailValidation] = useState<Validation>({
     isValid: false,
@@ -122,7 +122,8 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (isSubmitting) return; // Prevent double submission
+    setIsSubmitting(true);
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
@@ -152,7 +153,7 @@ export default function RegisterPage() {
         description: error.message,
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -176,6 +177,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isSubmitting}
               className={`${
                 email && (emailValidation.isValid ? 'border-green-500' : 'border-red-500')
               }`}
@@ -200,6 +202,7 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
+                disabled={isSubmitting}
                 className={`pr-10 ${
                   password && (passwordValidation.isValid ? 'border-green-500' : 'border-red-500')
                 }`}
@@ -208,6 +211,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                disabled={isSubmitting}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
@@ -240,9 +244,16 @@ export default function RegisterPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !emailValidation.isValid || !passwordValidation.isValid}
+            disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid}
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {isSubmitting ? (
+              <span className="flex items-center justify-center">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating account...
+              </span>
+            ) : (
+              'Create account'
+            )}
           </Button>
         </form>
 
