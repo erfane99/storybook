@@ -129,6 +129,9 @@ export default function RegisterPage() {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
+    // Dismiss any existing toasts
+    toast.dismiss();
+
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
     try {
@@ -142,6 +145,7 @@ export default function RegisterPage() {
 
       if (error) throw error;
 
+      // Only show success toast if no errors occurred
       toast({
         title: 'Welcome to StoryCanvas!',
         description: 'Please check your email to continue.',
@@ -149,6 +153,8 @@ export default function RegisterPage() {
 
       router.push('/auth/verify-email');
     } catch (error: any) {
+      // Dismiss any existing toasts before showing error
+      toast.dismiss();
       toast({
         variant: 'destructive',
         title: 'Registration failed',
