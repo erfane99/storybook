@@ -1,3 +1,5 @@
+// [FULL FIXED REGISTER PAGE FILE]
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -162,7 +164,57 @@ export default function RegisterPage() {
           </div>
           <p className="text-muted-foreground">Join our creative community and bring your stories to life</p>
         </div>
-        {/* Keep your form and remaining JSX here (unchanged) */}
+
+        {/* ✅ Full Form Restored */}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} />
+            {email && <p className={`text-sm ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>{emailValidation.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isSubmitting} className="pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" disabled={isSubmitting}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+              <div className={`h-full ${strength.color}`} style={{ width: `${(strength.score / 6) * 100}%` }} />
+            </div>
+            <p className={`text-sm ${strength.color.replace('bg-', 'text-')}`}>Password Strength: {strength.label}</p>
+            <p className={`text-sm ${passwordValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>{passwordValidation.message}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={isSubmitting} className="pr-10" />
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" disabled={isSubmitting}>
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {confirmPassword && !passwordsMatch && <p className="text-sm text-red-600">Passwords do not match</p>}
+          </div>
+
+          <div className="flex items-start space-x-2">
+            <Checkbox id="terms" checked={acceptedTerms} onCheckedChange={(checked) => { setAcceptedTerms(!!checked); setShowTermsError(false); }} disabled={isSubmitting} />
+            <label htmlFor="terms" className="text-sm leading-none">
+              I agree to the <a href="/terms" className="text-primary underline">Terms</a> and <a href="/privacy" className="text-primary underline">Privacy Policy</a>
+            </label>
+          </div>
+          {showTermsError && <p className="text-sm text-red-600">You must accept the terms and privacy policy</p>}
+
+          <Button type="submit" disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !passwordsMatch || !acceptedTerms} className="w-full">
+            {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating account...</> : 'Join StoryCanvas'}
+          </Button>
+        </form>
+
+        <div className="text-center text-sm">
+          Already have an account? <Link href="/auth/login" className="text-primary hover:underline">Sign in</Link>
+        </div>
       </div>
     </div>
   );
