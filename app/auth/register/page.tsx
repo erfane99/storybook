@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,8 +25,10 @@ interface Validation {
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsError, setShowTermsError] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -38,6 +40,7 @@ export default function RegisterPage() {
     isValid: false,
     message: ''
   });
+  const [passwordsMatch, setPasswordsMatch] = useState(true);
   const [strength, setStrength] = useState<PasswordStrength>({ 
     score: 0, 
     label: 'Too Weak', 
@@ -45,6 +48,7 @@ export default function RegisterPage() {
   });
 
   const router = useRouter();
+  const { toast } = useToast();
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -62,6 +66,11 @@ export default function RegisterPage() {
     };
     checkSession();
   }, [router, supabase.auth]);
+
+  useEffect(() => {
+    // Check if passwords match whenever either password field changes
+    setPasswordsMatch(password === confirmPassword || confirmPassword === '');
+  }, [password, confirmPassword]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -124,6 +133,9 @@ export default function RegisterPage() {
       setShowTermsError(true);
       return;
     }
+    if (!passwordsMatch) {
+      return;
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
     toast.dismiss();
@@ -148,14 +160,17 @@ export default function RegisterPage() {
         if (profileError) throw new Error('Profile creation failed: ' + profileError.message);
       }
 
-      toast.success('Welcome to StoryCanvas!', {
+      toast({
+        title: 'Welcome to StoryCanvas!',
         description: 'Please check your email to continue.'
       });
 
       router.push('/auth/verify-email');
     } catch (error: any) {
       toast.dismiss();
-      toast.error('Registration failed', {
+      toast({
+        variant: 'destructive',
+        title: 'Registration failed',
         description: error.message,
       });
     } finally {
@@ -204,7 +219,7 @@ export default function RegisterPage() {
             />
             <p className="text-sm text-muted-foreground">We'll never share your email with anyone else</p>
             {email && (
-              <p id="email-validation\" className={`text-sm ${
+              <p id="email-validation" className={`text-sm ${
                 emailValidation.isValid ? 'text-green-600' : 'text-red-600'
               }`} aria-live="polite">
                 {emailValidation.message}
@@ -268,6 +283,41 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={isSubmitting}
+                aria-invalid={!passwordsMatch}
+                aria-describedby="confirm-password-validation"
+                className={`pr-10 ${
+                  confirmPassword && (passwordsMatch ? 'border-green-500' : 'border-red-500')
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                disabled={isSubmitting}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {confirmPassword && !passwordsMatch && (
+              <p id="confirm-password-validation" className="text-sm text-red-600" aria-live="polite">
+                Passwords do not match
+              </p>
+            )}
+          </div>
+
           {/* Terms */}
           <div className="space-y-2">
             <div className="flex items-start space-x-2">
@@ -297,8 +347,8 @@ export default function RegisterPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !acceptedTerms}
-            aria-disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !acceptedTerms}
+            disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !passwordsMatch || !acceptedTerms}
+            aria-disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !passwordsMatch || !acceptedTerms}
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center">
