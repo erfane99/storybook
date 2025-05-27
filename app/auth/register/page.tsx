@@ -122,7 +122,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -136,16 +136,14 @@ export default function RegisterPage() {
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Registration successful!',
         description: 'Please check your email to continue.',
       });
 
-      router.push('/auth/login');
+      router.push('/auth/verify-email');
     } catch (error: any) {
       toast({
         variant: 'destructive',
