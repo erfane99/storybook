@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PasswordStrength {
   score: number;
@@ -26,6 +27,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsError, setShowTermsError] = useState(false);
   const [emailValidation, setEmailValidation] = useState<Validation>({
     isValid: false,
     message: ''
@@ -119,6 +122,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setShowTermsError(true);
+      return;
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -245,10 +252,50 @@ export default function RegisterPage() {
             )}
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="terms"
+                checked={acceptedTerms}
+                onCheckedChange={(checked) => {
+                  setAcceptedTerms(checked as boolean);
+                  setShowTermsError(false);
+                }}
+                disabled={isSubmitting}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                I agree to the{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  className="text-primary hover:underline"
+                >
+                  Terms
+                </a>
+                {' '}and{' '}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  className="text-primary hover:underline"
+                >
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+            {showTermsError && (
+              <p className="text-sm text-red-600">
+                Please accept the terms and privacy policy to continue
+              </p>
+            )}
+          </div>
+
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid}
+            disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !acceptedTerms}
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center">
