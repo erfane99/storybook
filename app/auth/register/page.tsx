@@ -172,7 +172,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -183,6 +183,8 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isSubmitting}
+              aria-invalid={email ? !emailValidation.isValid : undefined}
+              aria-describedby="email-validation"
               className={`${
                 email && (emailValidation.isValid ? 'border-green-500' : 'border-red-500')
               }`}
@@ -191,9 +193,13 @@ export default function RegisterPage() {
               We'll never share your email with anyone else
             </p>
             {email && (
-              <p className={`text-sm ${
-                emailValidation.isValid ? 'text-green-600' : 'text-red-600'
-              }`}>
+              <p 
+                id="email-validation"
+                className={`text-sm ${
+                  emailValidation.isValid ? 'text-green-600' : 'text-red-600'
+                }`}
+                aria-live="polite"
+              >
                 {emailValidation.message}
               </p>
             )}
@@ -211,6 +217,8 @@ export default function RegisterPage() {
                 required
                 minLength={8}
                 disabled={isSubmitting}
+                aria-invalid={password ? !passwordValidation.isValid : undefined}
+                aria-describedby="password-validation password-strength"
                 className={`pr-10 ${
                   password && (passwordValidation.isValid ? 'border-green-500' : 'border-red-500')
                 }`}
@@ -238,14 +246,26 @@ export default function RegisterPage() {
                   <div 
                     className={`h-full ${strength.color} transition-all duration-300`}
                     style={{ width: `${(strength.score / 6) * 100}%` }}
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={(strength.score / 6) * 100}
                   />
                 </div>
-                <p className={`text-sm ${strength.color.replace('bg-', 'text-')}`}>
+                <p 
+                  id="password-strength"
+                  className={`text-sm ${strength.color.replace('bg-', 'text-')}`}
+                  aria-live="polite"
+                >
                   Password Strength: {strength.label}
                 </p>
-                <p className={`text-sm ${
-                  passwordValidation.isValid ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <p 
+                  id="password-validation"
+                  className={`text-sm ${
+                    passwordValidation.isValid ? 'text-green-600' : 'text-red-600'
+                  }`}
+                  aria-live="polite"
+                >
                   {passwordValidation.message}
                 </p>
               </div>
@@ -262,6 +282,7 @@ export default function RegisterPage() {
                   setShowTermsError(false);
                 }}
                 disabled={isSubmitting}
+                aria-describedby="terms-error"
               />
               <label
                 htmlFor="terms"
@@ -286,7 +307,11 @@ export default function RegisterPage() {
               </label>
             </div>
             {showTermsError && (
-              <p className="text-sm text-red-600">
+              <p 
+                id="terms-error"
+                className="text-sm text-red-600"
+                aria-live="polite"
+              >
                 Please accept the terms and privacy policy to continue
               </p>
             )}
@@ -296,6 +321,7 @@ export default function RegisterPage() {
             type="submit"
             className="w-full"
             disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !acceptedTerms}
+            aria-disabled={isSubmitting || !emailValidation.isValid || !passwordValidation.isValid || !acceptedTerms}
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center">
