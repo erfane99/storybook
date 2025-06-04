@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CallbackPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -16,16 +17,34 @@ export default function CallbackPage() {
       try {
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        const next = url.searchParams.get('next') ?? '/';
+        const next = url.searchParams.get('next') ?? '/dashboard';
 
         if (!code) {
           throw new Error('No code provided');
         }
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
 
-        if (error) {
-          throw error;
+        if (!data.session) {
+          throw new Error('No session returned');
+        }
+
+        // Create profile if it doesn't exist
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({ 
+            id: data.session.user.id,
+            email: data.session.user.email,
+            onboarding_step: 'not_started',
+            user_type: 'user'
+          }, { 
+            onConflict: 'id' 
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't throw - still allow login if profile creation fails
         }
 
         toast({
@@ -33,23 +52,23 @@ export default function CallbackPage() {
           description: 'You\'re now logged in.',
         });
 
-        // Delay for toast to be visible before redirect
+        // Delay for toast to be visible
         setTimeout(() => {
           router.push(next);
-        }, 1500); // 1.5 second delay
+        }, 1500);
       } catch (error: any) {
         console.error('Auth callback error:', error);
         toast({
           variant: 'destructive',
           title: 'Authentication failed',
-          description: error.message
+          description: error.message || 'Failed to complete authentication'
         });
         router.push('/auth/login');
       }
     };
 
     handleCallback();
-  }, [router, supabase]);
+  }, [router, supabase, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

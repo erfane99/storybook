@@ -12,6 +12,7 @@ interface Profile {
   full_name?: string;
   avatar_url?: string;
   onboarding_step: 'not_started' | 'profile_completed' | 'story_created' | 'paid';
+  user_type: 'user' | 'admin';
   created_at: string;
 }
 
@@ -24,9 +25,12 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   saveAnonymousProgress: () => Promise<void>;
   updateOnboardingStep: (step: Profile['onboarding_step']) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const PROFILE_REFRESH_INTERVAL = 60000; // 1 minute
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
@@ -37,68 +41,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
 
+  const refreshProfile = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
+      if (profileData) {
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        try {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (!profileData && !profileError) {
-            // Create new profile if it doesn't exist
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: session.user.id,
-                email: session.user.email,
-                onboarding_step: 'not_started'
-              });
-
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Failed to create user profile',
-              });
-            } else {
-              // Fetch the newly created profile
-              const { data: newProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-                
-              setProfile(newProfile);
-              setUser(session.user);
-
-              if (newProfile?.onboarding_step === 'not_started') {
-                router.push('/create');
-              }
-            }
-          } else if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            toast({
-              variant: 'destructive',
-              title: 'Error',
-              description: 'Failed to load user profile',
-            });
-          } else {
-            setProfile(profileData);
-            setUser(session.user);
-
-            if (profileData.onboarding_step === 'not_started') {
-              router.push('/create');
-            }
-          }
-        } catch (error) {
-          console.error('Error in auth state change:', error);
-          setUser(null);
-          setProfile(null);
-        }
+        setUser(session.user);
+        await refreshProfile();
       } else {
         setUser(null);
         setProfile(null);
@@ -106,12 +76,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
+    // Set up periodic profile refresh
+    const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(refreshInterval);
     };
-  }, [supabase, toast, router]);
+  }, [supabase]);
 
   const updateOnboardingStep = async (step: Profile['onboarding_step']) => {
+    if (!user?.id) return;
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -119,7 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', user.id);
 
       if (error) throw error;
-      setProfile(prev => prev ? { ...prev, onboarding_step: step } : null);
+      
+      await refreshProfile();
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -146,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storyError) throw storyError;
 
-      if (progress.scenes.length > 0) {
+      if (progress.scenes?.length > 0) {
         const scenesData = progress.scenes.map((scene, index) => ({
           story_id: storyData.id,
           scene_number: index + 1,
@@ -163,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await updateOnboardingStep('story_created');
       clearProgress();
+      
       toast({
         title: 'Success',
         description: 'Your story has been saved to your account!',
@@ -210,17 +188,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .insert([{
             id: user.id,
             email: user.email,
-            onboarding_step: 'not_started'
+            onboarding_step: 'not_started',
+            user_type: 'user'
           }]);
 
         if (profileError) {
-          toast({
-            variant: 'destructive',
-            title: 'Profile Creation Failed',
-            description: 'Your account was created but profile setup failed. Please contact support.',
-          });
+          console.error('Profile creation error:', profileError);
         }
       }
+
+      toast({
+        title: 'Account created',
+        description: 'Please check your email to verify your account.',
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -235,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -255,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       saveAnonymousProgress,
       updateOnboardingStep,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
