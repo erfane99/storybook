@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCachedCartoonImage, saveCartoonImageToCache } from '@/lib/supabase/cartoon-cache';
+import { headers } from 'next/headers';
+
+export const maxDuration = 300; // Set max duration for edge function
+export const dynamic = 'force-dynamic';
+
+// Implement request caching
+const cache = new Map();
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +18,7 @@ export async function POST(request: Request) {
       isReusedImage,
       cartoon_image,
       user_id,
-      style, // passed explicitly for clarity and Supabase consistency
+      style,
     } = await request.json();
 
     if (!image_prompt || !character_description || !emotion || !style) {
@@ -20,20 +27,24 @@ export async function POST(request: Request) {
 
     const useMock = process.env.USE_MOCK === 'true';
 
-    // ♻️ Use cartoon_image from request if reused and available
-    if (isReusedImage && cartoon_image) {
-      console.log('♻️ Reusing cartoon image from request.');
-      return NextResponse.json({ url: cartoon_image, reused: true });
+    // Generate cache key
+    const cacheKey = `${cartoon_image}-${style}-${user_id}`;
+
+    // Check memory cache first
+    if (cache.has(cacheKey)) {
+      console.log('✅ Found in memory cache');
+      return NextResponse.json({ url: cache.get(cacheKey), reused: true });
     }
 
-    // ♻️ Check cache
+    // Check Supabase cache
     const cachedUrl = await getCachedCartoonImage(cartoon_image, style, user_id);
     if (cachedUrl) {
-      console.log('✅ Found cached cartoon image in Supabase.');
+      console.log('✅ Found cached cartoon image in Supabase');
+      // Update memory cache
+      cache.set(cacheKey, cachedUrl);
       return NextResponse.json({ url: cachedUrl, reused: true });
     }
 
-    // 🐱 Return mock image if mock mode is enabled
     if (useMock) {
       return NextResponse.json({
         url: 'https://placekitten.com/1024/1024',
@@ -55,8 +66,6 @@ export async function POST(request: Request) {
       `Character description: ${character_description}`,
       audienceStyles[audience as keyof typeof audienceStyles] || audienceStyles.children,
     ].filter(Boolean).join('\n\n');
-
-    console.log('🎨 Sending prompt to DALL·E:', finalPrompt);
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -82,8 +91,15 @@ export async function POST(request: Request) {
     const data = await response.json();
     const imageUrl = data.data[0].url;
 
-    // 💾 Save cartoonized image to cache
+    // Update both caches
+    cache.set(cacheKey, imageUrl);
     await saveCartoonImageToCache(cartoon_image, imageUrl, style, user_id);
+
+    // Clean up old cache entries if cache gets too large
+    if (cache.size > 1000) {
+      const oldestKey = cache.keys().next().value;
+      cache.delete(oldestKey);
+    }
 
     return NextResponse.json({
       url: imageUrl,
