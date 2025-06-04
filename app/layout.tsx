@@ -8,11 +8,15 @@ import { Loader2 } from 'lucide-react';
 
 // Dynamically import heavy components
 const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider'), {
-  ssr: false
+  ssr: false,
+  loading: () => null
 });
+
 const AuthProvider = dynamic(() => import('@/contexts/auth-context'), {
-  ssr: false
+  ssr: false,
+  loading: () => null
 });
+
 const Navbar = dynamic(() => import('@/components/layout/navbar'), {
   loading: () => (
     <div className="h-16 w-full bg-background/80 backdrop-blur-sm">
@@ -22,8 +26,10 @@ const Navbar = dynamic(() => import('@/components/layout/navbar'), {
     </div>
   )
 });
+
 const Toaster = dynamic(() => import('@/components/ui/toaster'), {
-  ssr: false
+  ssr: false,
+  loading: () => null
 });
 
 const fontSans = FontSans({
