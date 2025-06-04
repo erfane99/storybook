@@ -7,13 +7,13 @@ import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Dynamically import heavy components
-const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider').then(mod => mod.ThemeProvider), {
+const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider'), {
   ssr: false
 });
-const AuthProvider = dynamic(() => import('@/contexts/auth-context').then(mod => ({ default: mod.AuthProvider })), {
+const AuthProvider = dynamic(() => import('@/contexts/auth-context'), {
   ssr: false
 });
-const Navbar = dynamic(() => import('@/components/layout/navbar').then(mod => ({ default: mod.Navbar })), {
+const Navbar = dynamic(() => import('@/components/layout/navbar'), {
   loading: () => (
     <div className="h-16 w-full bg-background/80 backdrop-blur-sm">
       <div className="container flex items-center justify-center h-full">
@@ -22,7 +22,7 @@ const Navbar = dynamic(() => import('@/components/layout/navbar').then(mod => ({
     </div>
   )
 });
-const Toaster = dynamic(() => import('@/components/ui/toaster').then(mod => mod.Toaster));
+const Toaster = dynamic(() => import('@/components/ui/toaster'));
 
 const fontSans = FontSans({
   subsets: ['latin'],
