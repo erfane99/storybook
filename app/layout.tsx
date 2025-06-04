@@ -27,14 +27,14 @@ const Toaster = dynamic(() => import('@/components/ui/toaster'));
 const fontSans = FontSans({
   subsets: ['latin'],
   variable: '--font-sans',
-  display: 'swap', // Optimize font loading
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
   title: 'StoryCanvas - AI Storybook Generator',
   description: 'Create beautiful cartoon storybooks with AI using your own images',
   keywords: ['AI', 'storybook', 'children', 'cartoon', 'generator', 'DALL-E', 'OpenAI'],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1', // Mobile optimization
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function RootLayout({
