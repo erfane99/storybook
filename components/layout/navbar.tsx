@@ -10,7 +10,7 @@ import { Book, Menu, X } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-export function Navbar() {
+export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
