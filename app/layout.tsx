@@ -22,7 +22,9 @@ const Navbar = dynamic(() => import('@/components/layout/navbar'), {
     </div>
   )
 });
-const Toaster = dynamic(() => import('@/components/ui/toaster'));
+const Toaster = dynamic(() => import('@/components/ui/toaster'), {
+  ssr: false
+});
 
 const fontSans = FontSans({
   subsets: ['latin'],
