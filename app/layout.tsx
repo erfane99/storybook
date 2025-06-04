@@ -27,10 +27,13 @@ const Navbar = dynamic(() => import('@/components/layout/navbar'), {
   )
 });
 
-const Toaster = dynamic(() => import('@/components/ui/toaster'), {
-  ssr: false,
-  loading: () => null
-});
+const Toaster = dynamic(() => 
+  import('@/components/ui/toaster').then(mod => ({ default: mod.Toaster })), 
+  {
+    ssr: false,
+    loading: () => null
+  }
+);
 
 const fontSans = FontSans({
   subsets: ['latin'],
