@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/response';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -29,15 +29,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Initialize Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Check cache if user_id is provided
     if (user_id) {
-      const { data: cachedImage, error: cacheError } = await supabase
+      const { data: cachedImage } = await supabase
         .from('cartoon_cache')
         .select('cartoon_url')
         .eq('original_prompt', prompt)
@@ -45,21 +43,11 @@ export async function POST(req: Request) {
         .eq('user_id', user_id)
         .maybeSingle();
 
-      if (cacheError && cacheError.code !== 'PGRST116') {
-        console.error('Cache lookup error:', cacheError);
-      }
-
       if (cachedImage?.cartoon_url) {
-        console.log('✅ Cache hit for prompt:', prompt);
-        return NextResponse.json({
-          url: cachedImage.cartoon_url
-        });
+        return NextResponse.json({ url: cachedImage.cartoon_url });
       }
-
-      console.log('❌ Cache miss for prompt:', prompt);
     }
 
-    // Clean the prompt by removing subjective language and vague descriptions
     const cleanPrompt = prompt
       .trim()
       .replace(/\b(adorable|cute|precious|delightful|charming|lovely|beautiful|perfect)\s/gi, '')
@@ -74,15 +62,7 @@ export async function POST(req: Request) {
       .replace(/[.!]+$/, '');
 
     const stylePrompt = stylePrompts[style as keyof typeof stylePrompts] || stylePrompts['semi-realistic'];
-    
     const finalPrompt = `Create a cartoon-style portrait of the person described below. Focus on accurate facial features and clothing details. ${cleanPrompt}. ${stylePrompt}`;
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Original prompt:', prompt);
-      console.log('Cleaned prompt:', cleanPrompt);
-      console.log('Style:', style);
-      console.log('Final DALL·E prompt:', finalPrompt);
-    }
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -113,9 +93,8 @@ export async function POST(req: Request) {
 
     const generatedUrl = data.data[0].url;
 
-    // Save to cache if user_id is provided
     if (user_id) {
-      const { error: saveError } = await supabase
+      await supabase
         .from('cartoon_cache')
         .insert({
           user_id,
@@ -124,17 +103,10 @@ export async function POST(req: Request) {
           style,
           created_at: new Date().toISOString()
         });
-
-      if (saveError) {
-        console.error('Error saving to cache:', saveError);
-      }
     }
 
-    return NextResponse.json({
-      url: generatedUrl
-    });
+    return NextResponse.json({ url: generatedUrl });
   } catch (error: any) {
-    console.error('Error cartoonizing image:', error);
     return NextResponse.json(
       { 
         error: error.message || 'Failed to cartoonize image',
