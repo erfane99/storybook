@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/response';
-import { createClient } from '@supabase/supabase-js';
+import { getCharacterPrompt } from '@/lib/utils/prompt-helpers';
+import { getCachedImage } from '@/lib/supabase/image-cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     const { imageUrl, style = 'storybook' } = await req.json();
 
@@ -14,23 +15,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: cachedImage } = await supabase
-      .from('cartoonized_images')
-      .select('cartoon_url')
-      .eq('original_url', imageUrl)
-      .eq('style', style)
-      .limit(1)
-      .maybeSingle();
-
-    if (cachedImage?.cartoon_url) {
+    const cachedUrl = await getCachedImage(imageUrl, style);
+    if (cachedUrl) {
       return NextResponse.json({
         cached: true,
-        cartoonUrl: cachedImage.cartoon_url,
+        cartoonUrl: cachedUrl,
         characterDescription: null
       });
     }
@@ -53,19 +42,7 @@ export async function POST(req: Request) {
         messages: [
           {
             role: 'system',
-            content: `You are a professional character artist. Your task is to observe a real image of a person and return a precise, vivid, factual description of only the clearly visible physical traits. 
-
-Never include disclaimers or apologies. Never say "I'm sorry" or "I can't help with that". Focus solely on what you can observe with high confidence. Only describe traits that are unambiguous and clearly visible in the image, such as:
-
-- Gender presentation based on appearance
-- Hair length, color, and texture if visible
-- Skin tone (e.g., "light olive", "medium brown")
-- Eye color if clearly visible
-- Clothing style and color
-- Accessories (e.g., "wearing red glasses", "gold earrings")
-- Facial expression (e.g., "smiling", "neutral", "angry")
-
-Avoid vague words like "appears to", "seems to", "probably", "possibly". Avoid all subjectivity.`
+            content: getCharacterPrompt
           },
           {
             role: 'user',

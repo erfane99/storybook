@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/response';
-import { createClient } from '@supabase/supabase-js';
+import { cleanStoryPrompt, stylePrompts } from '@/lib/utils/prompt-helpers';
+import { getCachedImage, saveToCache } from '@/lib/supabase/image-cache';
 
 export const dynamic = 'force-dynamic';
-
-const stylePrompts = {
-  'storybook': 'Use a soft, whimsical storybook style with gentle colors and clean lines.',
-  'semi-realistic': 'Use a semi-realistic cartoon style with smooth shading and facial detail accuracy.',
-  'comic-book': 'Use a bold comic book style with strong outlines, vivid colors, and dynamic shading.',
-  'flat-illustration': 'Use a modern flat illustration style with minimal shading, clean vector lines, and vibrant flat colors.',
-  'anime': 'Use anime style with expressive eyes, stylized proportions, and crisp linework inspired by Japanese animation.'
-};
 
 export async function POST(req: Request) {
   try {
@@ -29,38 +22,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     if (user_id) {
-      const { data: cachedImage } = await supabase
-        .from('cartoon_cache')
-        .select('cartoon_url')
-        .eq('original_prompt', prompt)
-        .eq('style', style)
-        .eq('user_id', user_id)
-        .maybeSingle();
-
-      if (cachedImage?.cartoon_url) {
-        return NextResponse.json({ url: cachedImage.cartoon_url });
+      const cachedUrl = await getCachedImage(prompt, style, user_id);
+      if (cachedUrl) {
+        return NextResponse.json({ url: cachedUrl });
       }
     }
 
-    const cleanPrompt = prompt
-      .trim()
-      .replace(/\b(adorable|cute|precious|delightful|charming|lovely|beautiful|perfect)\s/gi, '')
-      .replace(/\b(gazing|peering|staring)\s+(?:curiously|intently|lovingly|sweetly)\s+at\b/gi, 'looking at')
-      .replace(/\badding a touch of\s+\w+\b/gi, '')
-      .replace(/\bwith a hint of\s+\w+\b/gi, '')
-      .replace(/\bexuding\s+(?:innocence|wonder|joy|happiness)\b/gi, '')
-      .replace(/\b(cozy|perfect for|wonderfully|overall cuteness)\s/gi, '')
-      .replace(/\b(?:filled with|radiating|emanating)\s+(?:warmth|joy|happiness|wonder)\b/gi, '')
-      .replace(/\b(a|an)\s+(baby|toddler|child|teen|adult)\s+(boy|girl|man|woman)\b/gi, '$2 $3')
-      .replace(/\s+/g, ' ')
-      .replace(/[.!]+$/, '');
-
+    const cleanPrompt = cleanStoryPrompt(prompt);
     const stylePrompt = stylePrompts[style as keyof typeof stylePrompts] || stylePrompts['semi-realistic'];
     const finalPrompt = `Create a cartoon-style portrait of the person described below. Focus on accurate facial features and clothing details. ${cleanPrompt}. ${stylePrompt}`;
 
@@ -86,23 +55,10 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
-    
-    if (!data.data?.[0]?.url) {
-      throw new Error('No image URL received from OpenAI');
-    }
-
     const generatedUrl = data.data[0].url;
 
     if (user_id) {
-      await supabase
-        .from('cartoon_cache')
-        .insert({
-          user_id,
-          original_prompt: prompt,
-          cartoon_url: generatedUrl,
-          style,
-          created_at: new Date().toISOString()
-        });
+      await saveToCache(prompt, generatedUrl, style, user_id);
     }
 
     return NextResponse.json({ url: generatedUrl });
