@@ -1,43 +1,26 @@
 import type { Database } from './database.types';
 
-// Platform detection
-const isNative = () => {
+// Platform detection helper
+const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
-  return 'ReactNativeWebView' in window;
+  return 'ReactNativeWebView' in window || navigator.product === 'ReactNative';
 };
 
-// Get the appropriate client based on platform
+// Singleton instance
+let universalClient: any = null;
+
 export const getUniversalSupabase = async () => {
-  if (isNative()) {
-    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
-    await import('react-native-url-polyfill/auto');
-    const { createClient } = await import('@supabase/supabase-js');
-    
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          storage: AsyncStorage
-        }
-      }
-    );
+  if (universalClient) return universalClient;
+
+  if (isNativePlatform()) {
+    const { createNativeClient } = await import('./client-native');
+    universalClient = await createNativeClient();
+  } else {
+    const { createWebClient } = await import('./client-web');
+    universalClient = createWebClient();
   }
 
-  // Web client
-  const { createClient } = await import('@supabase/supabase-js');
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true
-      }
-    }
-  );
+  return universalClient;
 };
 
 export type { Database };

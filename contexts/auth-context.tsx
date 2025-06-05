@@ -45,11 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { getUniversalSupabase } = await import('@/lib/supabase/universal');
       const client = await getUniversalSupabase();
       setSupabase(client);
-      
+
       const { data: { session } } = await client.auth.getSession();
       if (session?.user) {
         setUser(session.user);
-        await refreshProfile();
+        await refreshProfile(client, session.user.id);
       }
       setIsLoading(false);
     };
@@ -57,14 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initSupabase();
   }, []);
 
-  const refreshProfile = async () => {
-    if (!supabase || !user?.id) return;
-    
+  const refreshProfile = async (client = supabase, userId = user?.id) => {
+    if (!client || !userId) return;
+
     try {
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await client
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
@@ -85,14 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
-        await refreshProfile();
+        await refreshProfile(supabase, session.user.id);
       } else {
         setUser(null);
         setProfile(null);
       }
     });
 
-    const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
+    const refreshInterval = setInterval(() => refreshProfile(), PROFILE_REFRESH_INTERVAL);
 
     return () => {
       subscription.unsubscribe();
@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     if (!supabase) return;
     try {
-      const redirectTo = typeof window !== 'undefined' 
+      const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
         ? `${window.location.origin}/auth/callback`
         : 'storycanvas://auth/callback';
 
@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       saveAnonymousProgress,
       updateOnboardingStep,
-      refreshProfile,
+      refreshProfile: () => refreshProfile(),
     }}>
       {children}
     </AuthContext.Provider>
