@@ -1,28 +1,43 @@
-import { isNative } from './index';
 import type { Database } from './database.types';
 
-export const getSupabaseClient = async () => {
-  if (isNative()) {
-    const { createNativeClient } = await import('./native');
-    return createNativeClient();
-  } else {
-    const { createWebClient } = await import('./web');
-    return createWebClient();
-  }
+// Platform detection
+const isNative = () => {
+  if (typeof window === 'undefined') return false;
+  return 'ReactNativeWebView' in window;
 };
 
-// Client-side singleton
-let clientSideClient: Awaited<ReturnType<typeof getSupabaseClient>> | null = null;
-
+// Get the appropriate client based on platform
 export const getUniversalSupabase = async () => {
-  if (typeof window === 'undefined') {
-    return getSupabaseClient();
+  if (isNative()) {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
+    await import('react-native-url-polyfill/auto');
+    const { createClient } = await import('@supabase/supabase-js');
+    
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          storage: AsyncStorage
+        }
+      }
+    );
   }
 
-  if (!clientSideClient) {
-    clientSideClient = await getSupabaseClient();
-  }
-  return clientSideClient;
+  // Web client
+  const { createClient } = await import('@supabase/supabase-js');
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true
+      }
+    }
+  );
 };
 
 export type { Database };

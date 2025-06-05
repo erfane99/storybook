@@ -42,24 +42,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initSupabase = async () => {
-      const { getClientSupabase } = await import('@/lib/supabase/client');
-      const client = await getClientSupabase();
+      const { getUniversalSupabase } = await import('@/lib/supabase/universal');
+      const client = await getUniversalSupabase();
       setSupabase(client);
+      
+      const { data: { session } } = await client.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        await refreshProfile();
+      }
       setIsLoading(false);
     };
+
     initSupabase();
   }, []);
 
   const refreshProfile = async () => {
-    if (!supabase) return;
+    if (!supabase || !user?.id) return;
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
@@ -77,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
 
-    const subscription = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
         await refreshProfile();
@@ -90,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
 
     return () => {
-      subscription.data.subscription.unsubscribe();
+      subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
   }, [supabase]);
@@ -184,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const redirectTo = typeof window !== 'undefined' 
         ? `${window.location.origin}/auth/callback`
-        : undefined;
+        : 'storycanvas://auth/callback';
 
       const { data, error } = await supabase.auth.signUp({
         email,
