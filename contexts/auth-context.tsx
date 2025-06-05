@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const { unsubscribe } = handleAuthStateChange(supabase, async (event, session) => {
+    const subscription = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
         await refreshProfile();
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
 
     return () => {
-      unsubscribe?.();
+      subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
   }, [supabase]);
