@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getClientSupabase, handleAuthStateChange } from '@/lib/supabase/client';
+import { getClientSupabase } from '@/lib/supabase/client';
 import { useStoryProgress } from '@/hooks/use-story-progress';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const subscription = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
         await refreshProfile();
@@ -76,11 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
-    // Set up periodic profile refresh
     const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
 
     return () => {
-      subscription.unsubscribe();
+      subscription.data.subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
   }, [supabase]);
@@ -95,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', user.id);
 
       if (error) throw error;
-      
       await refreshProfile();
     } catch (error: any) {
       toast({
@@ -140,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await updateOnboardingStep('story_created');
       clearProgress();
-      
+
       toast({
         title: 'Success',
         description: 'Your story has been saved to your account!',
