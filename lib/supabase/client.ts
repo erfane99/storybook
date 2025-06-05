@@ -1,29 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import 'react-native-url-polyfill/auto';
+/**
+ * Shared Supabase Client Interface
+ * 
+ * This module provides a unified interface for accessing Supabase functionality
+ * across web and mobile platforms. The implementation details are split between
+ * web.ts and native.ts to handle platform-specific requirements.
+ * 
+ * Features:
+ * - Automatic platform detection
+ * - Shared session management
+ * - Type-safe database operations
+ * - Deep link handling for mobile
+ */
+
+import { createWebClient } from './web';
+import { createNativeClient } from './native';
+import type { Database } from './database.types';
 
 const isWeb = typeof window !== 'undefined' && !('ReactNativeWebView' in window);
 
+// Create appropriate client based on platform
 const createSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing Supabase environment variables. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.'
-    );
-  }
-
-  const options = {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: isWeb,
-      storage: isWeb ? undefined : AsyncStorage,
-    },
-  };
-  
-  return createClient(supabaseUrl, supabaseAnonKey, options);
+  return isWeb ? createWebClient() : createNativeClient();
 };
 
 // Client-side singleton
@@ -50,9 +47,8 @@ export const handleAuthStateChange = (
 
 // Helper for handling deep links (mobile)
 export const handleDeepLink = async (url: string) => {
-  const supabase = getClientSupabase();
-  
   if (!isWeb && url.includes('auth/callback')) {
+    const supabase = getClientSupabase();
     const params = new URL(url).searchParams;
     const code = params.get('code');
     
@@ -62,3 +58,6 @@ export const handleDeepLink = async (url: string) => {
   }
   return null;
 };
+
+// Export types for convenience
+export type { Database };
