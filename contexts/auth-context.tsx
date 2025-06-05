@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getClientSupabase } from '@/lib/supabase/client';
 import { useStoryProgress } from '@/hooks/use-story-progress';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -36,12 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = getClientSupabase();
+  const [supabase, setSupabase] = useState<any>(null);
   const { progress, clearProgress } = useStoryProgress();
   const { toast } = useToast();
   const router = useRouter();
 
+  useEffect(() => {
+    const initSupabase = async () => {
+      const { getUniversalSupabase } = await import('@/lib/supabase/universal');
+      const client = await getUniversalSupabase();
+      setSupabase(client);
+      setIsLoading(false);
+    };
+    initSupabase();
+  }, []);
+
   const refreshProfile = async () => {
+    if (!supabase) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
@@ -65,6 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (!supabase) return;
+
     const subscription = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
@@ -73,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
       }
-      setIsLoading(false);
     });
 
     const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
@@ -85,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const updateOnboardingStep = async (step: Profile['onboarding_step']) => {
-    if (!user?.id) return;
+    if (!user?.id || !supabase) return;
 
     try {
       const { error } = await supabase
@@ -106,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveAnonymousProgress = async () => {
-    if (!user || !progress) return;
+    if (!user || !progress || !supabase) return;
 
     try {
       const { data: storyData, error: storyError } = await supabase
@@ -153,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) return;
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -168,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!supabase) return;
     try {
       const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
         ? `${window.location.origin}/auth/callback`
@@ -212,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!supabase) return;
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
