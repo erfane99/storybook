@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initSupabase = async () => {
-      const { getUniversalSupabase } = await import('@/lib/supabase/universal');
-      const client = await getUniversalSupabase();
+      const { getClientSupabase } = await import('@/lib/supabase/client');
+      const client = await getClientSupabase();
       setSupabase(client);
       setIsLoading(false);
     };
@@ -182,9 +182,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     if (!supabase) return;
     try {
-      const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
+      const redirectTo = typeof window !== 'undefined' 
         ? `${window.location.origin}/auth/callback`
-        : 'storycanvas://auth/callback';
+        : undefined;
 
       const { data, error } = await supabase.auth.signUp({
         email,
