@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/response';
+import { NextResponse } from 'next/server';
 import { cleanStoryPrompt, stylePrompts } from '@/lib/utils/prompt-helpers';
 import { getCachedImage, saveToCache } from '@/lib/supabase/image-cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const { prompt, style = 'semi-realistic', user_id } = await req.json();
+    const { prompt, style = 'semi-realistic', user_id } = await request.json();
 
     if (!prompt) {
       return NextResponse.json(

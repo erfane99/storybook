@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/response';
+import { NextResponse } from 'next/server';
 import { getCharacterPrompt } from '@/lib/utils/prompt-helpers';
 import { getCachedImage } from '@/lib/supabase/image-cache';
 
@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { imageUrl, style = 'storybook' } = await req.json();
+    const { imageUrl, style = 'storybook' } = await request.json();
 
     if (!imageUrl) {
       return NextResponse.json(
