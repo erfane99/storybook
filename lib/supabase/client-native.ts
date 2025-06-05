@@ -11,7 +11,11 @@ export const createNativeClient = async () => {
     );
   }
 
-  // Use require instead of import() to avoid static bundling
+  // Avoid loading these unless truly running in native
+  if (typeof window !== 'undefined' && !('ReactNativeWebView' in window)) {
+    throw new Error('Attempted to load native Supabase client in a non-native environment.');
+  }
+
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   require('react-native-url-polyfill/auto');
 
@@ -19,7 +23,7 @@ export const createNativeClient = async () => {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      storage: AsyncStorage
-    }
+      storage: AsyncStorage,
+    },
   });
 };
