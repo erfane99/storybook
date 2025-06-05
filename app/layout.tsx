@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Dynamically import heavy components
+// Dynamically import heavy components with ssr: false to ensure client-side only rendering
 const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider'), {
   ssr: false,
   loading: () => null
@@ -18,6 +18,7 @@ const AuthProvider = dynamic(() => import('@/contexts/auth-context'), {
 });
 
 const Navbar = dynamic(() => import('@/components/layout/navbar'), {
+  ssr: false,
   loading: () => (
     <div className="h-16 w-full bg-background/80 backdrop-blur-sm">
       <div className="container flex items-center justify-center h-full">
