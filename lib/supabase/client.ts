@@ -1,26 +1,21 @@
 /**
  * Shared Supabase Client Interface
  * 
- * This module provides a unified interface for accessing Supabase functionality
- * across web and mobile platforms. The implementation details are split between
- * web.ts and native.ts to handle platform-specific requirements.
+ * This module provides a unified interface for accessing Supabase functionality.
+ * For platform-specific implementations (web, native), see ./web.ts and ./native.ts.
  * 
  * Features:
- * - Automatic platform detection
  * - Shared session management
  * - Type-safe database operations
- * - Deep link handling for mobile
+ * - Cross-platform compatibility
  */
 
-import { createWebClient } from './web';
-import { createNativeClient } from './native';
+import { createWebClient } from './web'; // or conditionally use ./native if needed later
 import type { Database } from './database.types';
 
-const isWeb = typeof window !== 'undefined' && !('ReactNativeWebView' in window);
-
-// Create appropriate client based on platform
+// Initialize the Supabase client
 const createSupabaseClient = () => {
-  return isWeb ? createWebClient() : createNativeClient();
+  return createWebClient();
 };
 
 // Client-side singleton
@@ -30,14 +25,18 @@ export const getClientSupabase = () => {
   if (typeof window === 'undefined') {
     return createSupabaseClient();
   }
-  
+
   if (!clientSideClient) {
     clientSideClient = createSupabaseClient();
   }
   return clientSideClient;
 };
 
-// Helper for handling auth state
+/**
+ * Subscribe to Supabase auth state changes
+ * @param supabase - the Supabase client instance
+ * @param callback - handler for auth events
+ */
 export const handleAuthStateChange = (
   supabase: ReturnType<typeof createSupabaseClient>,
   callback: (event: string, session: any) => void
@@ -45,19 +44,6 @@ export const handleAuthStateChange = (
   return supabase.auth.onAuthStateChange(callback);
 };
 
-// Helper for handling deep links (mobile)
-export const handleDeepLink = async (url: string) => {
-  if (!isWeb && url.includes('auth/callback')) {
-    const supabase = getClientSupabase();
-    const params = new URL(url).searchParams;
-    const code = params.get('code');
-    
-    if (code) {
-      return await supabase.auth.exchangeCodeForSession(code);
-    }
-  }
-  return null;
-};
-
-// Export types for convenience
 export type { Database };
+
+// ❌ Removed: `export { getClientSupabase }` (was redundant and caused the error)

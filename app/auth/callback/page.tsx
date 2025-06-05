@@ -7,7 +7,8 @@ import { Loader2 } from 'lucide-react';
 import { getClientSupabase, handleDeepLink } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const isWeb = typeof window !== 'undefined' && !('ReactNativeWebView' in window);
+// More reliable browser detection
+const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -20,23 +21,19 @@ export default function CallbackPage() {
         let session;
 
         if (isWeb) {
-          // Web: Get session from URL hash
           const { data, error } = await supabase.auth.getSessionFromUrl();
           if (error) throw error;
           session = data.session;
         } else {
-          // Mobile: Handle deep link manually
           const url = window.location.href;
           const { data, error } = await handleDeepLink(url);
           if (error) throw error;
           session = data?.session;
         }
 
-        if (!session) {
-          throw new Error('No session returned');
-        }
+        if (!session) throw new Error('No session returned');
 
-        // Create profile if not exists
+        // Optional profile creation
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -48,10 +45,7 @@ export default function CallbackPage() {
             onConflict: 'id'
           });
 
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Continue even if profile creation fails
-        }
+        if (profileError) console.error('Profile creation error:', profileError);
 
         toast({
           title: 'Welcome back!',
