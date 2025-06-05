@@ -42,16 +42,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initSupabase = async () => {
-      const { getUniversalSupabase } = await import('@/lib/supabase/universal');
-      const client = await getUniversalSupabase();
-      setSupabase(client);
+      try {
+        const { getUniversalSupabase } = await import('@/lib/supabase/universal');
+        const client = await getUniversalSupabase();
+        setSupabase(client);
 
-      const { data: { session } } = await client.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        await refreshProfile(client, session.user.id);
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await refreshProfile(client, session.user.id);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize Supabase:', error);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initSupabase();

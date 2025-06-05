@@ -1,5 +1,3 @@
-import type { Database } from './database.types';
-
 // Platform detection helper
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
@@ -12,15 +10,19 @@ let universalClient: any = null;
 export const getUniversalSupabase = async () => {
   if (universalClient) return universalClient;
 
-  if (isNativePlatform()) {
-    const { createNativeClient } = await import('./client-native');
-    universalClient = await createNativeClient();
-  } else {
-    const { createWebClient } = await import('./client-web');
-    universalClient = createWebClient();
+  try {
+    if (isNativePlatform()) {
+      // Load native client implementation
+      const nativeModule = await require('./client-native');
+      universalClient = await nativeModule.createNativeClient();
+    } else {
+      // Load web client implementation
+      const webModule = await require('./client-web');
+      universalClient = webModule.createWebClient();
+    }
+    return universalClient;
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+    throw error;
   }
-
-  return universalClient;
 };
-
-export type { Database };
