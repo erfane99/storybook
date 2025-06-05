@@ -12,7 +12,7 @@ const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider'),
   loading: () => null
 });
 
-const AuthProvider = dynamic(() => import('@/contexts/auth-context'), {
+const AuthProvider = dynamic(() => import('@/contexts/auth-context').then(mod => mod.AuthProvider), {
   ssr: false,
   loading: () => null
 });
