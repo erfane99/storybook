@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getClientSupabase } from '@/lib/supabase/client';
+import { getClientSupabase, handleAuthStateChange } from '@/lib/supabase/client';
 import { useStoryProgress } from '@/hooks/use-story-progress';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { unsubscribe } = handleAuthStateChange(supabase, async (event, session) => {
       if (session?.user) {
         setUser(session.user);
         await refreshProfile();
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshInterval = setInterval(refreshProfile, PROFILE_REFRESH_INTERVAL);
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe?.();
       clearInterval(refreshInterval);
     };
   }, [supabase]);
@@ -171,12 +171,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
+      const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
+        ? `${window.location.origin}/auth/callback`
+        : 'storycanvas://auth/callback';
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: redirectTo }
       });
 
       if (error) throw error;

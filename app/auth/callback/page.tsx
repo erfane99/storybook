@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { getClientSupabase } from '@/lib/supabase/client';
+import { getClientSupabase, handleDeepLink } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const isWeb = typeof window !== 'undefined' && !('ReactNativeWebView' in window);
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -15,36 +17,40 @@ export default function CallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get('code');
-        const next = url.searchParams.get('next') ?? '/dashboard';
+        let session;
 
-        if (!code) {
-          throw new Error('No code provided');
+        if (isWeb) {
+          // Web: Get session from URL hash
+          const { data, error } = await supabase.auth.getSessionFromUrl();
+          if (error) throw error;
+          session = data.session;
+        } else {
+          // Mobile: Handle deep link manually
+          const url = window.location.href;
+          const { data, error } = await handleDeepLink(url);
+          if (error) throw error;
+          session = data?.session;
         }
 
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-
-        if (!data.session) {
+        if (!session) {
           throw new Error('No session returned');
         }
 
-        // Create profile if it doesn't exist
+        // Create profile if not exists
         const { error: profileError } = await supabase
           .from('profiles')
-          .upsert({ 
-            id: data.session.user.id,
-            email: data.session.user.email,
+          .upsert({
+            id: session.user.id,
+            email: session.user.email,
             onboarding_step: 'not_started',
             user_type: 'user'
-          }, { 
-            onConflict: 'id' 
+          }, {
+            onConflict: 'id'
           });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't throw - still allow login if profile creation fails
+          // Continue even if profile creation fails
         }
 
         toast({
@@ -52,16 +58,16 @@ export default function CallbackPage() {
           description: 'You\'re now logged in.',
         });
 
-        // Delay for toast to be visible
         setTimeout(() => {
-          router.push(next);
+          router.push('/dashboard');
         }, 1500);
+
       } catch (error: any) {
         console.error('Auth callback error:', error);
         toast({
           variant: 'destructive',
           title: 'Authentication failed',
-          description: error.message || 'Failed to complete authentication'
+          description: error.message || 'Failed to complete authentication',
         });
         router.push('/auth/login');
       }
