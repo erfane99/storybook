@@ -15,41 +15,53 @@ export default function CallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const { data, error } = await supabase.auth.getSessionFromUrl();
-        if (error) throw error;
-        
-        const session = data.session;
-        if (!session) throw new Error('No session returned');
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        const next = url.searchParams.get('next') ?? '/dashboard';
 
-        // Optional profile creation
+        if (!code) {
+          throw new Error('No code provided');
+        }
+
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+
+        if (!data.session) {
+          throw new Error('No session returned');
+        }
+
+        // Create profile if it doesn't exist
         const { error: profileError } = await supabase
           .from('profiles')
-          .upsert({
-            id: session.user.id,
-            email: session.user.email,
+          .upsert({ 
+            id: data.session.user.id,
+            email: data.session.user.email,
             onboarding_step: 'not_started',
             user_type: 'user'
-          }, {
-            onConflict: 'id'
+          }, { 
+            onConflict: 'id' 
           });
 
-        if (profileError) console.error('Profile creation error:', profileError);
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't throw - still allow login if profile creation fails
+        }
 
         toast({
           title: 'Welcome back!',
           description: 'You\'re now logged in.',
         });
 
+        // Delay for toast to be visible
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push(next);
         }, 1500);
-
       } catch (error: any) {
         console.error('Auth callback error:', error);
         toast({
           variant: 'destructive',
           title: 'Authentication failed',
-          description: error.message || 'Failed to complete authentication',
+          description: error.message || 'Failed to complete authentication'
         });
         router.push('/auth/login');
       }

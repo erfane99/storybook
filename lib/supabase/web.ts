@@ -14,8 +14,7 @@ export const createWebClient = () => {
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true
+      persistSession: true
     }
   });
 };
