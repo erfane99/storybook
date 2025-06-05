@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useStoryProgress } from '@/hooks/use-story-progress';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { useStoryProgress } from '@/hooks/use-story-progress';
+import { AuthError, Session, User, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/supabase/database.types';
 
 interface Profile {
   id: string;
@@ -16,7 +18,7 @@ interface Profile {
 }
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
   profile: Profile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -32,10 +34,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const PROFILE_REFRESH_INTERVAL = 60000; // 1 minute
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [supabase, setSupabase] = useState<any>(null);
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const { progress, clearProgress } = useStoryProgress();
   const { toast } = useToast();
   const router = useRouter();
@@ -87,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
         await refreshProfile(supabase, session.user.id);
@@ -179,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       await saveAnonymousProgress();
-    } catch (error: any) {
+    } catch (error: AuthError) {
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
@@ -224,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Account created',
         description: 'Please check your email to verify your account.',
       });
-    } catch (error: any) {
+    } catch (error: AuthError) {
       toast({
         variant: 'destructive',
         title: 'Sign Up Failed',
@@ -240,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       router.push('/');
-    } catch (error: any) {
+    } catch (error: AuthError) {
       toast({
         variant: 'destructive',
         title: 'Sign Out Failed',
