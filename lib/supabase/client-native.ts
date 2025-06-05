@@ -1,6 +1,6 @@
 // This file is only loaded in React Native environments
-let AsyncStorage: any;
-let nativePolyfills: any;
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
 export const createNativeClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,15 +12,13 @@ export const createNativeClient = async () => {
     );
   }
 
-  // Dynamically load native dependencies only when needed
-  if (!AsyncStorage) {
-    AsyncStorage = (await require('@react-native-async-storage/async-storage')).default;
-    nativePolyfills = await require('react-native-url-polyfill/auto');
-  }
+  // Dynamically import native dependencies
+  const [{ default: AsyncStorage }, nativePolyfills] = await Promise.all([
+    import('@react-native-async-storage/async-storage'),
+    import('react-native-url-polyfill/auto')
+  ]);
 
-  const { createClient } = await require('@supabase/supabase-js');
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
