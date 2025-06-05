@@ -4,11 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { getClientSupabase, handleDeepLink } from '@/lib/supabase/client';
+import { getClientSupabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-// More reliable browser detection
-const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -18,19 +15,10 @@ export default function CallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        let session;
-
-        if (isWeb) {
-          const { data, error } = await supabase.auth.getSessionFromUrl();
-          if (error) throw error;
-          session = data.session;
-        } else {
-          const url = window.location.href;
-          const { data, error } = await handleDeepLink(url);
-          if (error) throw error;
-          session = data?.session;
-        }
-
+        const { data, error } = await supabase.auth.getSessionFromUrl();
+        if (error) throw error;
+        
+        const session = data.session;
         if (!session) throw new Error('No session returned');
 
         // Optional profile creation
