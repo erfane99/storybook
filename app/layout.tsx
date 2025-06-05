@@ -2,36 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter as FontSans } from 'next/font/google';
 import { cn } from '@/lib/utils';
-import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
-
-// Dynamically import heavy components with ssr: false to ensure client-side only rendering
-const ThemeProvider = dynamic(() => import('@/components/theme/theme-provider'), {
-  ssr: false,
-  loading: () => null
-});
-
-const AuthProvider = dynamic(() => import('@/contexts/auth-context').then(mod => mod.AuthProvider), {
-  ssr: false,
-  loading: () => null
-});
-
-const Navbar = dynamic(() => import('@/components/layout/navbar'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-16 w-full bg-background/80 backdrop-blur-sm">
-      <div className="container flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    </div>
-  )
-});
-
-const Toaster = dynamic(() => import('@/components/ui/toaster').then(mod => mod.Toaster), {
-  ssr: false,
-  loading: () => null
-});
+import { RootClientWrapper } from './_components/root-client-wrapper';
 
 const fontSans = FontSans({
   subsets: ['latin'],
@@ -55,20 +26,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={cn('antialiased', fontSans.variable)}>
       <head />
       <body className="min-h-screen bg-background font-sans">
-        <Suspense fallback={null}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <AuthProvider>
-              <Navbar />
-              {children}
-              <Toaster />
-            </AuthProvider>
-          </ThemeProvider>
-        </Suspense>
+        <RootClientWrapper>
+          {children}
+        </RootClientWrapper>
       </body>
     </html>
   );
