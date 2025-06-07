@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { data: profileData, error: profileError } = await client
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as Profile);
       }
     } catch (error) {
       console.error('Error refreshing profile:', error);
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({ onboarding_step: step })
         .eq('id', user.id);
 

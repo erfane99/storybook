@@ -77,7 +77,7 @@ export default function Navbar() {
     if (user) {
       return (
         <>
-          <Button variant="ghost\" onClick={() => router.push('/dashboard')}>
+          <Button variant="ghost" onClick={() => router.push('/dashboard')}>
             Dashboard
           </Button>
           <Button variant="outline" onClick={handleSignOut}>
@@ -88,6 +88,9 @@ export default function Navbar() {
     }
     return (
       <>
+        <Button variant="ghost" onClick={() => router.push('/login')}>
+          Sign In
+        </Button>
         <Button onClick={() => router.push('/create')}>
           Get Started
         </Button>
@@ -113,6 +116,12 @@ export default function Navbar() {
     }
     return (
       <>
+        <Button variant="outline" onClick={() => {
+          router.push('/login');
+          setIsOpen(false);
+        }}>
+          Sign In
+        </Button>
         <Button onClick={() => {
           router.push('/create');
           setIsOpen(false);
