@@ -22,12 +22,14 @@ export default function CallbackPage() {
         const next = url.searchParams.get('next') ?? '/dashboard';
         if (!code) throw new Error('Missing auth code');
 
+        // Exchange code for session
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
-        const session = data.session;
-        if (!session?.user) throw new Error('Session creation failed');
 
-        console.log('Session info:', session);
+        // Ensure session is ready
+        const { data: sessionResult } = await supabase.auth.getSession();
+        const session = sessionResult.session;
+        if (!session?.user) throw new Error('Session not ready');
 
         const { error: insertError } = await supabase
           .from('profiles')
@@ -39,20 +41,9 @@ export default function CallbackPage() {
             onConflict: 'user_id',
           });
 
-        if (insertError) {
-          console.warn('Profile insert error:', insertError);
-          toast({
-            variant: 'destructive',
-            title: 'Login succeeded, but profile not saved',
-            description: insertError.message,
-          });
-        } else {
-          toast({
-            title: 'Welcome!',
-            description: 'You’re now signed in.',
-          });
-        }
+        if (insertError) throw insertError;
 
+        toast({ title: 'Welcome!', description: 'You’re now signed in.' });
         setTimeout(() => router.push(next), 1500);
       } catch (err: any) {
         console.error('Callback error:', err);
