@@ -19,52 +19,48 @@ export default function CallbackPage() {
         const code = url.searchParams.get('code');
         const next = url.searchParams.get('next') ?? '/dashboard';
 
-        if (!code) {
-          throw new Error('No code provided');
-        }
+        if (!code) throw new Error('No confirmation code provided');
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
 
-        if (!data.session) {
-          throw new Error('No session returned');
-        }
+        const session = data?.session;
+        const user = session?.user;
 
-        // Create profile if it doesn't exist
+        if (!user) throw new Error('No session returned from Supabase');
+
+        console.log('🔐 User session:', user);
+
+        // Attempt to upsert profile
         const { error: profileError } = await supabase
           .from('profiles')
-          .upsert(
-            {
-              user_id: data.session.user.id,
-              email: data.session.user.email,
-              onboarding_step: 'not_started',
-              user_type: 'user'
-            },
-            {
-              onConflict: 'user_id'
-            }
-          );
+          .upsert({
+            user_id: user.id, // Must match the column name
+            email: user.email,
+            onboarding_step: 'not_started',
+            user_type: 'user'
+          }, {
+            onConflict: 'user_id'
+          });
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Don't throw – still allow login if profile creation fails
+          console.error('⚠️ Profile creation error:', profileError);
+          // Don't block login if profile insert fails
         }
 
         toast({
           title: 'Welcome back!',
-          description: "You're now logged in.",
+          description: 'You are now logged in.',
         });
 
-        // Delay for toast to be visible
-        setTimeout(() => {
-          router.push(next);
-        }, 1500);
-      } catch (error: any) {
-        console.error('Auth callback error:', error);
+        // Redirect to next page
+        setTimeout(() => router.push(next), 1200);
+      } catch (err: any) {
+        console.error('❌ Auth callback error:', err);
         toast({
           variant: 'destructive',
-          title: 'Authentication failed',
-          description: error.message || 'Failed to complete authentication'
+          title: 'Authentication Failed',
+          description: err.message || 'An unknown error occurred',
         });
         router.push('/auth/login');
       }
