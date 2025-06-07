@@ -22,29 +22,35 @@ export default function CallbackPage() {
         const next = url.searchParams.get('next') ?? '/dashboard';
         if (!code) throw new Error('Missing auth code');
 
-        // Exchange code for session
+        // Step 1: Exchange the code
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
+        if (!data.session?.user) throw new Error('Session not returned');
 
-        // Ensure session is ready
-        const { data: sessionResult } = await supabase.auth.getSession();
-        const session = sessionResult.session;
-        if (!session?.user) throw new Error('Session not ready');
+        const { user } = data.session;
 
+        // Step 2: Wait 1-2s to ensure Supabase reflects session state
+        await new Promise((res) => setTimeout(res, 1000));
+
+        // Step 3: Try inserting profile
         const { error: insertError } = await supabase
           .from('profiles')
-          .upsert({
-            user_id: session.user.id,
-            email: session.user.email,
-            user_type: 'user',
-          }, {
-            onConflict: 'user_id',
-          });
+          .upsert(
+            {
+              user_id: user.id,
+              email: user.email,
+              user_type: 'user',
+            },
+            { onConflict: 'user_id' }
+          );
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.warn('Profile insert failed:', insertError.message);
+          // Don’t throw — allow navigation to continue
+        }
 
         toast({ title: 'Welcome!', description: 'You’re now signed in.' });
-        setTimeout(() => router.push(next), 1500);
+        router.push(next);
       } catch (err: any) {
         console.error('Callback error:', err);
         toast({
