@@ -1,5 +1,3 @@
-// [FULL FIXED REGISTER PAGE FILE]
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -128,14 +126,6 @@ export default function RegisterPage() {
       });
       if (error) throw error;
 
-      if (data.user?.id) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          user_id: data.user.id,
-          user_type: 'user'
-        });
-        if (profileError) throw new Error('Profile creation failed: ' + profileError.message);
-      }
-
       toast({ title: 'Welcome to StoryCanvas!', description: 'Please check your email to continue.' });
       router.push('/auth/verify-email');
     } catch (error: any) {
@@ -165,11 +155,10 @@ export default function RegisterPage() {
           <p className="text-muted-foreground">Join our creative community and bring your stories to life</p>
         </div>
 
-        {/* ✅ Full Form Restored */}
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} />
             {email && <p className={`text-sm ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>{emailValidation.message}</p>}
           </div>
 
