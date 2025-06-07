@@ -33,23 +33,26 @@ export default function CallbackPage() {
         // Create profile if it doesn't exist
         const { error: profileError } = await supabase
           .from('profiles')
-          .upsert({ 
-            id: data.session.user.id,
-            email: data.session.user.email,
-            onboarding_step: 'not_started',
-            user_type: 'user'
-          }, { 
-            onConflict: 'id' 
-          });
+          .upsert(
+            {
+              user_id: data.session.user.id,
+              email: data.session.user.email,
+              onboarding_step: 'not_started',
+              user_type: 'user'
+            },
+            {
+              onConflict: 'user_id'
+            }
+          );
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't throw - still allow login if profile creation fails
+          // Don't throw – still allow login if profile creation fails
         }
 
         toast({
           title: 'Welcome back!',
-          description: 'You\'re now logged in.',
+          description: "You're now logged in.",
         });
 
         // Delay for toast to be visible
