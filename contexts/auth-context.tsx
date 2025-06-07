@@ -120,12 +120,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       await refreshProfile();
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update onboarding progress',
-      });
+    } catch (error: unknown) {
+      const err = error as AuthError;
+      if (toast) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to update onboarding progress',
+        });
+      }
       throw error;
     }
   };
@@ -164,16 +167,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await updateOnboardingStep('story_created');
       clearProgress();
 
-      toast({
-        title: 'Success',
-        description: 'Your story has been saved to your account!',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save story progress',
-      });
+      if (toast) {
+        toast({
+          title: 'Success',
+          description: 'Your story has been saved to your account!',
+        });
+      }
+    } catch (error: unknown) {
+      const err = error as AuthError;
+      if (toast) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to save story progress',
+        });
+      }
     }
   };
 
@@ -183,12 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       await saveAnonymousProgress();
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign In Failed',
-        description: error.message || 'Failed to sign in',
-      });
+    } catch (error: unknown) {
+      const err = error as AuthError;
+      if (toast) {
+        toast({
+          variant: 'destructive',
+          title: 'Sign In Failed',
+          description: err.message || 'Failed to sign in',
+        });
+      }
       throw error;
     }
   };
@@ -197,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     try {
       const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
-        ? `${window.location.origin}/auth/callback`
+        ? `${(window as Window).location.origin}/auth/callback`
         : 'storycanvas://auth/callback';
 
       const { data, error } = await supabase.auth.signUp({
@@ -214,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .insert([{
             id: user.id,
-            email: user.email,
+            email: user.email || email,
             onboarding_step: 'not_started',
             user_type: 'user'
           }]);
@@ -224,16 +235,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      toast({
-        title: 'Account created',
-        description: 'Please check your email to verify your account.',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description: error.message || 'Failed to create account',
-      });
+      if (toast) {
+        toast({
+          title: 'Account created',
+          description: 'Please check your email to verify your account.',
+        });
+      }
+    } catch (error: unknown) {
+      const err = error as AuthError;
+      if (toast) {
+        toast({
+          variant: 'destructive',
+          title: 'Sign Up Failed',
+          description: err.message || 'Failed to create account',
+        });
+      }
       throw error;
     }
   };
@@ -243,13 +259,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      router.push('/');
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign Out Failed',
-        description: error.message || 'Failed to sign out',
-      });
+      if (router) {
+        router.push('/');
+      }
+    } catch (error: unknown) {
+      const err = error as AuthError;
+      if (toast) {
+        toast({
+          variant: 'destructive',
+          title: 'Sign Out Failed',
+          description: err.message || 'Failed to sign out',
+        });
+      }
       throw error;
     }
   };
