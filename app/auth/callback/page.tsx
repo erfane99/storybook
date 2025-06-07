@@ -14,41 +14,44 @@ export default function CallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      const supabase = getClientSupabase();
+
       try {
-        const supabase = await getClientSupabase(); // ✅ must be awaited
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
         const next = url.searchParams.get('next') ?? '/dashboard';
+        if (!code) throw new Error('Missing auth code');
 
-        if (!code) throw new Error('No code provided');
-
+        // 🔁 Exchange code for session
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
-
-        // Optional: confirm session is available
         const session = data.session;
-        if (!session || !session.user) throw new Error('No session returned');
+        if (!session?.user) throw new Error('Session creation failed');
 
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          user_id: session.user.id,
-          email: session.user.email,
-          user_type: 'user'
-        }, { onConflict: 'user_id' });
+        // 🧠 Insert profile if not exists
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: session.user.id,
+            email: session.user.email,
+            user_type: 'user',
+          }, {
+            onConflict: 'user_id',
+          });
 
-        if (profileError) {
-  console.error('❌ Failed to insert profile:', profileError);
-  throw new Error('Profile insert failed: ' + profileError.message);
-}
+        if (insertError) {
+          console.warn('Profile insert error:', insertError);
+          throw insertError;
+        }
 
-
-        toast({ title: 'Welcome back!', description: 'You’re now logged in.' });
+        toast({ title: 'Welcome!', description: 'You’re now signed in.' });
         setTimeout(() => router.push(next), 1500);
       } catch (err: any) {
         console.error('Callback error:', err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
-          description: err.message || 'There was a problem logging you in.'
+          description: err.message || 'Something went wrong',
         });
         router.push('/auth/login');
       } finally {
