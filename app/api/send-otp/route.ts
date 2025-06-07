@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getClientSupabase } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,23 +23,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = getClientSupabase();
+    const supabase = createServerSupabaseClient();
 
-    // Send OTP using Supabase Auth
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: phone,
-      options: {
-        shouldCreateUser: true,
-      },
-    });
+    // Generate a random 6-digit OTP
+    const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Set expiration time to 5 minutes from now
+    const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    // Insert or update the phone_otp table
+    const { error } = await supabase
+      .from('phone_otp')
+      .upsert({
+        phone,
+        otp_code,
+        expires_at,
+        verified: false,
+        created_at: new Date().toISOString(),
+      }, {
+        onConflict: 'phone'
+      });
 
     if (error) {
-      console.error('Supabase OTP error:', error);
+      console.error('Database error:', error);
       return NextResponse.json(
-        { error: error.message || 'Failed to send OTP' },
-        { status: 400 }
+        { error: 'Failed to generate OTP' },
+        { status: 500 }
       );
     }
+
+    // Mock mode: Log OTP to console instead of sending SMS
+    console.log(`🔐 OTP for ${phone}: ${otp_code} (expires in 5 minutes)`);
 
     return NextResponse.json({
       success: true,

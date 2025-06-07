@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getClientSupabase } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,57 +23,119 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = getClientSupabase();
+    const supabase = createServerSupabaseClient();
 
-    // Verify OTP using Supabase Auth
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: phone,
-      token: otp_code,
-      type: 'sms',
-    });
+    // Check if a matching OTP entry exists
+    const { data: otpRecord, error: otpError } = await supabase
+      .from('phone_otp')
+      .select('*')
+      .eq('phone', phone)
+      .eq('otp_code', otp_code)
+      .gt('expires_at', new Date().toISOString())
+      .single();
 
-    if (error) {
-      console.error('Supabase OTP verification error:', error);
+    if (otpError || !otpRecord) {
       return NextResponse.json(
-        { error: error.message || 'Invalid verification code' },
+        { error: 'Invalid or expired verification code' },
         { status: 400 }
       );
     }
 
-    if (!data.user) {
+    // Mark OTP as verified
+    const { error: updateError } = await supabase
+      .from('phone_otp')
+      .update({ verified: true })
+      .eq('phone', phone)
+      .eq('otp_code', otp_code);
+
+    if (updateError) {
+      console.error('Error updating OTP record:', updateError);
       return NextResponse.json(
-        { error: 'Verification failed' },
-        { status: 400 }
+        { error: 'Failed to verify OTP' },
+        { status: 500 }
       );
     }
 
-    // Create or update user profile
-    try {
-      const { error: profileError } = await supabase
-        .from('users')
-        .upsert({
-          id: data.user.id,
-          email: data.user.email || '',
-          created_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
+    // Check if user already exists in profiles table
+    const { data: existingProfile, error: profileCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', phone) // Using email field to store phone for now
+      .single();
+
+    let userId = existingProfile?.id;
+
+    // If user doesn't exist, create a new Supabase user
+    if (!existingProfile) {
+      try {
+        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+          phone: phone,
+          phone_confirm: true,
+          user_metadata: {
+            phone: phone,
+          },
         });
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't fail the request if profile creation fails
+        if (createUserError) {
+          console.error('Error creating user:', createUserError);
+          return NextResponse.json(
+            { error: 'Failed to create user account' },
+            { status: 500 }
+          );
+        }
+
+        userId = newUser.user?.id;
+
+        // Insert into profiles table
+        if (userId) {
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({
+              id: userId,
+              email: phone, // Using email field to store phone
+              created_at: new Date().toISOString(),
+            });
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            // Don't fail the request if profile creation fails
+          }
+        }
+      } catch (createError) {
+        console.error('Error in user creation process:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create user account' },
+          { status: 500 }
+        );
       }
-    } catch (profileError) {
-      console.error('Profile creation error:', profileError);
-      // Continue with successful authentication even if profile creation fails
+    }
+
+    // Create a session for the user
+    if (userId) {
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
+          type: 'magiclink',
+          email: phone, // Using email field for phone
+          options: {
+            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/`,
+          },
+        });
+
+        if (sessionError) {
+          console.error('Error generating session:', sessionError);
+        }
+      } catch (sessionError) {
+        console.error('Session creation error:', sessionError);
+        // Continue without session creation
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: 'Phone number verified successfully',
       user: {
-        id: data.user.id,
-        phone: data.user.phone,
+        id: userId,
+        phone: phone,
       },
     });
   } catch (error: any) {
