@@ -7,62 +7,62 @@ import { Loader2 } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export default function CallbackPage() {
+export default function AuthCallbackPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        const supabase = getClientSupabase();
+    const handleAuthCallback = async () => {
+      const supabase = getClientSupabase();
 
+      try {
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        const next = url.searchParams.get('next') ?? '/';
 
-        if (!code) throw new Error('Missing auth code in URL');
+        if (!code) throw new Error('Missing authorization code');
 
+        // Exchange the code for a session
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-
-        const user = data.session?.user;
-        if (!user) throw new Error('Session missing after exchange');
-
-        // Create profile if it doesn't exist
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          user_id: user.id,
-          email: user.email,
-          user_type: 'user'
-        }, {
-          onConflict: 'user_id'
-        });
-
-        if (profileError) {
-          console.warn('Profile insert failed:', profileError.message);
-          // Don't block login
+        if (error || !data.session?.user) {
+          throw new Error(error?.message || 'Failed to create session');
         }
 
-        toast({
-          title: 'Welcome!',
-          description: 'Your account has been confirmed and you are now logged in.',
-        });
+        const user = data.session.user;
 
-        setTimeout(() => router.push(next), 1500);
+        // Insert profile if not exists
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              user_id: user.id,
+              email: user.email,
+              user_type: 'free', // default type
+            },
+            { onConflict: 'user_id' }
+          );
+
+        if (profileError) {
+          console.warn('Failed to insert profile:', profileError.message);
+        }
+
+        toast({ title: 'Welcome!', description: 'You’re now signed in.' });
+
+        router.replace('/'); // ✅ redirect to home page
       } catch (err: any) {
-        console.error('Auth callback failed:', err);
+        console.error('Auth callback error:', err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
-          description: err.message || 'Something went wrong.',
+          description: err.message || 'Something went wrong',
         });
-        router.push('/auth/login');
+        router.replace('/auth/login'); // fallback
       } finally {
         setLoading(false);
       }
     };
 
-    handleCallback();
+    handleAuthCallback();
   }, [router, toast]);
 
   return (
@@ -72,7 +72,7 @@ export default function CallbackPage() {
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-lg font-medium">Completing login...</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Please wait while we confirm your account.
+            Please wait while we confirm your account
           </p>
         </CardContent>
       </Card>
