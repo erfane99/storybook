@@ -13,24 +13,23 @@ export default function CallbackPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleCallback = async () => {
+    const handleAuthCallback = async () => {
+      const supabase = getClientSupabase();
+
       try {
-        const supabase = await getClientSupabase(); // ✅ MUST be awaited
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        const next = url.searchParams.get('next') ?? '/';
+        const redirectPath = url.searchParams.get('next') ?? '/';
 
-        if (!code) throw new Error('Missing auth code');
+        if (!code) throw new Error('No confirmation code found in URL');
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
+        if (error) throw new Error(error.message);
 
-        const session = data.session;
-        if (!session?.user) throw new Error('Session creation failed');
+        const session = data?.session;
+        if (!session?.user) throw new Error('Failed to retrieve session');
 
-        console.log('SESSION:', session); // 🔍 Debugging log
-
-        const { error: insertError } = await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
           .upsert(
             {
@@ -38,26 +37,21 @@ export default function CallbackPage() {
               email: session.user.email,
               user_type: 'user',
             },
-            {
-              onConflict: 'user_id',
-            }
+            { onConflict: 'user_id' }
           );
 
-        if (insertError) {
-          console.warn('Profile insert error:', insertError);
+        if (profileError) {
+          console.warn('Profile creation error:', profileError.message);
         }
 
-        toast({ title: 'Welcome!', description: 'You’re now signed in.' });
-
-        setTimeout(() => {
-          router.push(next);
-        }, 1500);
+        toast({ title: 'Welcome!', description: 'You are now signed in.' });
+        setTimeout(() => router.push(redirectPath), 1500);
       } catch (err: any) {
-        console.error('Callback error:', err);
+        console.error('Auth callback error:', err.message || err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
-          description: err.message || 'Something went wrong',
+          description: err.message || 'An error occurred during login.',
         });
         router.push('/auth/login');
       } finally {
@@ -65,7 +59,7 @@ export default function CallbackPage() {
       }
     };
 
-    handleCallback();
+    handleAuthCallback();
   }, [router, toast]);
 
   return (
