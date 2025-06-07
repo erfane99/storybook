@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useStoryProgress } from '@/hooks/use-story-progress';
-import { AuthError, Session, User, SupabaseClient } from '@supabase/supabase-js';
+import { User, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
 
 interface Profile {
@@ -21,8 +21,6 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   saveAnonymousProgress: () => Promise<void>;
   updateOnboardingStep: (step: Profile['onboarding_step']) => Promise<void>;
@@ -121,7 +119,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await refreshProfile();
     } catch (error: unknown) {
-      const err = error as AuthError;
       if (toast) {
         toast({
           variant: 'destructive',
@@ -174,7 +171,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error: unknown) {
-      const err = error as AuthError;
       if (toast) {
         toast({
           variant: 'destructive',
@@ -182,75 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: 'Failed to save story progress',
         });
       }
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    if (!supabase) return;
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      await saveAnonymousProgress();
-    } catch (error: unknown) {
-      const err = error as AuthError;
-      if (toast) {
-        toast({
-          variant: 'destructive',
-          title: 'Sign In Failed',
-          description: err.message || 'Failed to sign in',
-        });
-      }
-      throw error;
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    if (!supabase) return;
-    try {
-      const redirectTo = typeof window !== 'undefined' && !('ReactNativeWebView' in window)
-        ? `${(window as Window).location.origin}/auth/callback`
-        : 'storycanvas://auth/callback';
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: redirectTo }
-      });
-
-      if (error) throw error;
-
-      const user = data?.user;
-      if (user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: user.id,
-            email: user.email || email,
-            onboarding_step: 'not_started',
-            user_type: 'user'
-          }]);
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-        }
-      }
-
-      if (toast) {
-        toast({
-          title: 'Account created',
-          description: 'Please check your email to verify your account.',
-        });
-      }
-    } catch (error: unknown) {
-      const err = error as AuthError;
-      if (toast) {
-        toast({
-          variant: 'destructive',
-          title: 'Sign Up Failed',
-          description: err.message || 'Failed to create account',
-        });
-      }
-      throw error;
     }
   };
 
@@ -263,12 +190,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/');
       }
     } catch (error: unknown) {
-      const err = error as AuthError;
       if (toast) {
         toast({
           variant: 'destructive',
           title: 'Sign Out Failed',
-          description: err.message || 'Failed to sign out',
+          description: 'Failed to sign out',
         });
       }
       throw error;
@@ -280,8 +206,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       isLoading,
-      signIn,
-      signUp,
       signOut,
       saveAnonymousProgress,
       updateOnboardingStep,
