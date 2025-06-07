@@ -14,58 +14,50 @@ export default function CallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const supabase = getClientSupabase();
-
       try {
+        const supabase = getClientSupabase();
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
         const next = url.searchParams.get('next') ?? '/dashboard';
-        if (!code) throw new Error('Missing auth code');
 
-        // Step 1: Exchange the code
+        if (!code) throw new Error('No auth code found in URL');
+
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
-        if (!data.session?.user) throw new Error('Session not returned');
 
-        const { user } = data.session;
+        const session = data.session;
+        if (!session || !session.user) throw new Error('Session missing after exchange');
 
-        // Step 2: Wait 1-2s to ensure Supabase reflects session state
-        await new Promise((res) => setTimeout(res, 1000));
-
-        // Step 3: Try inserting profile
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .upsert(
-            {
-              user_id: user.id,
-              email: user.email,
-              user_type: 'user',
-            },
-            { onConflict: 'user_id' }
-          );
+        // 🔁 Insert profile (temporarily skip auth.uid())
+        const { error: insertError } = await supabase.from('profiles').upsert({
+          user_id: session.user.id,
+          email: session.user.email,
+          user_type: 'user',
+        }, {
+          onConflict: 'user_id',
+        });
 
         if (insertError) {
-          console.warn('Profile insert failed:', insertError.message);
-          // Don’t throw — allow navigation to continue
+          console.warn('Profile insert error:', insertError);
         }
 
-        toast({ title: 'Welcome!', description: 'You’re now signed in.' });
-        router.push(next);
+        toast({ title: 'Welcome!', description: 'You are now logged in.' });
+        setTimeout(() => router.push(next), 1500);
       } catch (err: any) {
-        console.error('Callback error:', err);
+        console.error('Callback Error:', err.message || err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
-          description: err.message || 'Something went wrong',
+          description: err.message || 'There was a problem signing you in.'
         });
-        router.push('/auth/login');
+        setTimeout(() => router.push('/auth/login'), 2000);
       } finally {
         setLoading(false);
       }
     };
 
     handleCallback();
-  }, [router, toast]);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -73,9 +65,7 @@ export default function CallbackPage() {
         <CardContent className="pt-6 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-lg font-medium">Completing login...</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Please wait while we confirm your account
-          </p>
+          <p className="text-sm text-muted-foreground mt-2">Please wait while we confirm your account</p>
         </CardContent>
       </Card>
     </div>
