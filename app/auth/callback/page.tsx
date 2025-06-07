@@ -13,45 +13,48 @@ export default function CallbackPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      const supabase = getClientSupabase();
-
+    const handleCallback = async () => {
       try {
+        const supabase = getClientSupabase();
+
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        const redirectPath = url.searchParams.get('next') ?? '/';
+        const next = url.searchParams.get('next') ?? '/';
 
-        if (!code) throw new Error('No confirmation code found in URL');
+        if (!code) throw new Error('Missing auth code in URL');
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw new Error(error.message);
+        if (error) throw error;
 
-        const session = data?.session;
-        if (!session?.user) throw new Error('Failed to retrieve session');
+        const user = data.session?.user;
+        if (!user) throw new Error('Session missing after exchange');
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert(
-            {
-              user_id: session.user.id,
-              email: session.user.email,
-              user_type: 'user',
-            },
-            { onConflict: 'user_id' }
-          );
+        // Create profile if it doesn't exist
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          user_id: user.id,
+          email: user.email,
+          user_type: 'user'
+        }, {
+          onConflict: 'user_id'
+        });
 
         if (profileError) {
-          console.warn('Profile creation error:', profileError.message);
+          console.warn('Profile insert failed:', profileError.message);
+          // Don't block login
         }
 
-        toast({ title: 'Welcome!', description: 'You are now signed in.' });
-        setTimeout(() => router.push(redirectPath), 1500);
+        toast({
+          title: 'Welcome!',
+          description: 'Your account has been confirmed and you are now logged in.',
+        });
+
+        setTimeout(() => router.push(next), 1500);
       } catch (err: any) {
-        console.error('Auth callback error:', err.message || err);
+        console.error('Auth callback failed:', err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
-          description: err.message || 'An error occurred during login.',
+          description: err.message || 'Something went wrong.',
         });
         router.push('/auth/login');
       } finally {
@@ -59,7 +62,7 @@ export default function CallbackPage() {
       }
     };
 
-    handleAuthCallback();
+    handleCallback();
   }, [router, toast]);
 
   return (
@@ -69,7 +72,7 @@ export default function CallbackPage() {
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-lg font-medium">Completing login...</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Please wait while we confirm your account
+            Please wait while we confirm your account.
           </p>
         </CardContent>
       </Card>
