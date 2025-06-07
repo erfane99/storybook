@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
@@ -10,64 +10,50 @@ import { useToast } from '@/hooks/use-toast';
 export default function CallbackPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = getClientSupabase();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        const supabase = await getClientSupabase(); // ✅ must be awaited
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
         const next = url.searchParams.get('next') ?? '/dashboard';
 
-        if (!code) throw new Error('No confirmation code provided');
+        if (!code) throw new Error('No code provided');
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
 
-        const session = data?.session;
-        const user = session?.user;
+        // Optional: confirm session is available
+        const session = data.session;
+        if (!session || !session.user) throw new Error('No session returned');
 
-        if (!user) throw new Error('No session returned from Supabase');
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          user_id: session.user.id,
+          email: session.user.email,
+          user_type: 'user'
+        }, { onConflict: 'user_id' });
 
-        console.log('🔐 User session:', user);
+        if (profileError) console.warn('Profile creation error:', profileError);
 
-        // Attempt to upsert profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            user_id: user.id, // Must match the column name
-            email: user.email,
-            onboarding_step: 'not_started',
-            user_type: 'user'
-          }, {
-            onConflict: 'user_id'
-          });
-
-        if (profileError) {
-          console.error('⚠️ Profile creation error:', profileError);
-          // Don't block login if profile insert fails
-        }
-
-        toast({
-          title: 'Welcome back!',
-          description: 'You are now logged in.',
-        });
-
-        // Redirect to next page
-        setTimeout(() => router.push(next), 1200);
+        toast({ title: 'Welcome back!', description: 'You’re now logged in.' });
+        setTimeout(() => router.push(next), 1500);
       } catch (err: any) {
-        console.error('❌ Auth callback error:', err);
+        console.error('Callback error:', err);
         toast({
           variant: 'destructive',
-          title: 'Authentication Failed',
-          description: err.message || 'An unknown error occurred',
+          title: 'Login failed',
+          description: err.message || 'There was a problem logging you in.'
         });
         router.push('/auth/login');
+      } finally {
+        setLoading(false);
       }
     };
 
     handleCallback();
-  }, [router, supabase, toast]);
+  }, [router, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
