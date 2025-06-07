@@ -25,6 +25,33 @@ export async function POST(request: Request) {
 
     const supabase = createServerSupabaseClient();
 
+    // Check for recent OTP requests (throttling)
+    const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    
+    const { data: recentOtp, error: throttleCheckError } = await supabase
+      .from('phone_otp')
+      .select('created_at')
+      .eq('phone', phone)
+      .gt('created_at', sixtySecondsAgo)
+      .single();
+
+    if (throttleCheckError && throttleCheckError.code !== 'PGRST116') {
+      console.error('Error checking for recent OTP:', throttleCheckError);
+      return NextResponse.json(
+        { error: 'Failed to process request' },
+        { status: 500 }
+      );
+    }
+
+    // If a recent OTP exists, reject the request
+    if (recentOtp) {
+      console.log(`🚫 OTP request throttled for ${phone} - recent request found`);
+      return NextResponse.json(
+        { error: 'Please wait before requesting another code.' },
+        { status: 429 }
+      );
+    }
+
     // Generate a random 6-digit OTP
     const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
 
