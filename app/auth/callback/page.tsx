@@ -35,7 +35,11 @@ export default function CallbackPage() {
           user_type: 'user'
         }, { onConflict: 'user_id' });
 
-        if (profileError) console.warn('Profile creation error:', profileError);
+        if (profileError) {
+  console.error('❌ Failed to insert profile:', profileError);
+  throw new Error('Profile insert failed: ' + profileError.message);
+}
+
 
         toast({ title: 'Welcome back!', description: 'You’re now logged in.' });
         setTimeout(() => router.push(next), 1500);
