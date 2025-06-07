@@ -17,8 +17,11 @@ export default function AuthCallbackPage() {
       const supabase = getClientSupabase();
 
       try {
+        console.log('📩 Callback page loaded, URL is:', window.location.href);
+
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
+        console.log('🔑 Authorization code received:', code);
 
         if (!code) throw new Error('Missing authorization code');
 
@@ -29,6 +32,7 @@ export default function AuthCallbackPage() {
         }
 
         const user = data.session.user;
+        console.log('✅ Session created for user:', user.id);
 
         // Insert profile if not exists
         const { error: profileError } = await supabase
@@ -37,26 +41,27 @@ export default function AuthCallbackPage() {
             {
               user_id: user.id,
               email: user.email,
-              user_type: 'free', // default type
+              user_type: 'free',
             },
             { onConflict: 'user_id' }
           );
 
         if (profileError) {
-          console.warn('Failed to insert profile:', profileError.message);
+          console.warn('⚠️ Failed to insert profile:', profileError.message);
+        } else {
+          console.log('✅ Profile created or already exists for:', user.id);
         }
 
         toast({ title: 'Welcome!', description: 'You’re now signed in.' });
-
-        router.replace('/'); // ✅ redirect to home page
+        router.replace('/');
       } catch (err: any) {
-        console.error('Auth callback error:', err);
+        console.error('❌ Auth callback error:', err);
         toast({
           variant: 'destructive',
           title: 'Login failed',
           description: err.message || 'Something went wrong',
         });
-        router.replace('/auth/login'); // fallback
+        router.replace('/auth/login');
       } finally {
         setLoading(false);
       }
