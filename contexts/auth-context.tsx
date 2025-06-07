@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       await saveAnonymousProgress();
-    } catch (error: AuthError) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
@@ -228,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Account created',
         description: 'Please check your email to verify your account.',
       });
-    } catch (error: AuthError) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Sign Up Failed',
@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       router.push('/');
-    } catch (error: AuthError) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Sign Out Failed',
