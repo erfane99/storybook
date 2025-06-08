@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter as FontSans } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { RootClientWrapper } from './_components/root-client-wrapper';
+import Navbar from '@/components/layout/navbar'; // ✅ Add this
 
 const fontSans = FontSans({
   subsets: ['latin'],
@@ -27,6 +28,7 @@ export default function RootLayout({
       <head />
       <body className="min-h-screen bg-background font-sans">
         <RootClientWrapper>
+          <Navbar /> {/* ✅ Navbar is now rendered globally */}
           {children}
         </RootClientWrapper>
       </body>
