@@ -77,7 +77,7 @@ export default function Navbar() {
     if (user) {
       return (
         <>
-          <Button variant="ghost\" onClick={() => router.push('/dashboard')}>
+          <Button variant="ghost" onClick={() => router.push('/dashboard')}>
             Dashboard
           </Button>
           <Button variant="outline" onClick={handleSignOut}>
