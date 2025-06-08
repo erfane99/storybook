@@ -50,52 +50,29 @@ export async function POST(request: Request) {
 
     try {
       // Generate a magic link for the user to sign them in
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      const { data, error } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
-        email: phone, // Using email field for phone
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/`,
-        },
+        phone: phone
       });
 
-      if (linkError) {
-        console.error('Error generating magic link:', linkError);
+      if (error) {
+        console.error('Error generating login link:', error);
         return NextResponse.json(
-          { error: 'Failed to sign in user' },
+          { error: 'Failed to generate login link', details: error },
           { status: 500 }
         );
       }
 
-      // The magic link will automatically sign the user in
-      // We can also try to create a session directly
-      if (linkData.user) {
-        try {
-          const { data: sessionData, error: sessionError } = await supabase.auth.admin.createSession({
-            user_id: linkData.user.id,
-          });
-
-          if (sessionError) {
-            console.error('Session creation error:', sessionError);
-            // Continue without session creation error
-          }
-        } catch (sessionError) {
-          console.error('Session creation failed:', sessionError);
-          // Continue without session creation
-        }
-      }
-
       return NextResponse.json({
         success: true,
-        message: 'User signed in successfully',
-        user: {
-          id: existingUser.id,
-          phone: phone,
-        },
+        login_url: data.action_link,
+        message: 'Login link generated'
       });
+
     } catch (authError) {
       console.error('Auth error:', authError);
       return NextResponse.json(
-        { error: 'Failed to authenticate user' },
+        { error: 'Failed to generate login link', details: authError },
         { status: 500 }
       );
     }
