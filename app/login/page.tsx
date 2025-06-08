@@ -29,7 +29,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/login-user', {
+      const response = await fetch('/api/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,21 +40,21 @@ export default function LoginPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to sign in');
+        throw new Error(result.error || 'Failed to send OTP');
       }
 
       toast({
-        title: 'Success',
-        description: 'You have been signed in successfully.',
+        title: 'OTP Sent',
+        description: 'Please check your phone for the verification code.',
       });
 
-      // Redirect to home page
-      router.push('/');
+      // Redirect to verify page with phone number
+      router.push(`/verify-otp?phone=${encodeURIComponent(data.phone)}`);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Sign In Failed',
-        description: error.message || 'Failed to sign in',
+        title: 'Error',
+        description: error.message || 'Failed to send OTP',
       });
     } finally {
       setIsLoading(false);
@@ -70,7 +70,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
           <CardDescription>
-            Enter your phone number to sign in to your account
+            Enter your phone number to receive a verification code
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,10 +107,10 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Sending OTP...
                 </>
               ) : (
-                'Sign In'
+                'Send OTP'
               )}
             </Button>
           </form>
