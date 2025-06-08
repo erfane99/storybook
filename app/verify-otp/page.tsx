@@ -17,6 +17,7 @@ interface VerifyFormData {
 function VerifyOTPContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -34,6 +35,9 @@ function VerifyOTPContent() {
   useEffect(() => {
     if (!phone) {
       router.push('/auth');
+    } else {
+      // Start countdown on initial load (OTP was sent when user arrived)
+      setResendCountdown(30);
     }
   }, [phone, router]);
 
@@ -48,6 +52,17 @@ function VerifyOTPContent() {
       return () => clearTimeout(timer);
     }
   }, [otpCode, isLoading, handleSubmit]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => {
+        setResendCountdown(prev => prev - 1);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
 
   const onSubmit = async (data: VerifyFormData) => {
     if (!phone) return;
@@ -91,7 +106,7 @@ function VerifyOTPContent() {
   };
 
   const handleResendOTP = async () => {
-    if (!phone) return;
+    if (!phone || resendCountdown > 0) return;
 
     setIsResending(true);
 
@@ -114,6 +129,9 @@ function VerifyOTPContent() {
         title: 'OTP Resent',
         description: 'A new verification code has been sent to your phone.',
       });
+
+      // Start countdown again
+      setResendCountdown(30);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -128,6 +146,8 @@ function VerifyOTPContent() {
   if (!phone) {
     return null;
   }
+
+  const canResend = resendCountdown === 0 && !isResending;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -198,7 +218,7 @@ function VerifyOTPContent() {
               <Button
                 variant="outline"
                 onClick={handleResendOTP}
-                disabled={isResending}
+                disabled={!canResend}
                 className="w-full"
               >
                 {isResending ? (
@@ -210,6 +230,11 @@ function VerifyOTPContent() {
                   'Resend Code'
                 )}
               </Button>
+              {resendCountdown > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  You can resend the code in {resendCountdown}s
+                </p>
+              )}
             </div>
 
             <div className="text-center">
