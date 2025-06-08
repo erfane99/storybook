@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Phone } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 
-interface LoginFormData {
+interface RegisterFormData {
   phone: string;
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -23,13 +23,13 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>();
+  } = useForm<RegisterFormData>();
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/login-user', {
+      const response = await fetch('/api/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,21 +40,21 @@ export default function LoginPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to sign in');
+        throw new Error(result.error || 'Failed to send OTP');
       }
 
       toast({
-        title: 'Success',
-        description: 'You have been signed in successfully.',
+        title: 'OTP Sent',
+        description: 'Please check your phone for the verification code.',
       });
 
-      // Redirect to home page
-      router.push('/');
+      // Redirect to verify page with phone number
+      router.push(`/verify-registration?phone=${encodeURIComponent(data.phone)}`);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Sign In Failed',
-        description: error.message || 'Failed to sign in',
+        title: 'Error',
+        description: error.message || 'Failed to send OTP',
       });
     } finally {
       setIsLoading(false);
@@ -66,11 +66,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Phone className="h-6 w-6 text-primary" />
+            <UserPlus className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
+          <CardTitle className="text-2xl font-bold">Register</CardTitle>
           <CardDescription>
-            Enter your phone number to sign in to your account
+            Enter your phone number to create a new account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,23 +107,23 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Sending OTP...
                 </>
               ) : (
-                'Sign In'
+                'Send OTP'
               )}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Button
                 variant="link"
                 className="p-0 h-auto font-semibold"
-                onClick={() => router.push('/register')}
+                onClick={() => router.push('/login')}
               >
-                Register here
+                Sign in here
               </Button>
             </p>
           </div>
