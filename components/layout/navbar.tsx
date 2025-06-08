@@ -7,41 +7,17 @@ import { ModeToggle } from '@/components/theme/mode-toggle';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Book, Menu, X } from 'lucide-react';
-import { getClientSupabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = getClientSupabase();
+  const { user, isLoading, signOut } = useAuth();
 
   useEffect(() => {
-    // Check for auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-        } else {
-          setUser(null);
-        }
-        setIsLoading(false);
-      }
-    );
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    });
-
     // Scroll detection
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -50,14 +26,12 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     
     return () => {
-      subscription.unsubscribe();
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [supabase]);
+  }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+    await signOut();
   };
 
   const isActive = (path: string) => pathname === path;
