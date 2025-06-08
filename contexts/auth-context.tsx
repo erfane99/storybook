@@ -92,6 +92,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const createProfileIfNotExists = async (client: SupabaseClient<Database>, user: User): Promise<void> => {
+    try {
+      // Check if profile already exists
+      const { data: existingProfile, error: profileCheckError } = await client
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      // If profile doesn't exist (PGRST116 = no rows returned), create it
+      if (profileCheckError && profileCheckError.code === 'PGRST116') {
+        const currentTime = new Date().toISOString();
+        
+        const { error: insertError } = await client
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            user_type: 'user',
+            onboarding_step: 'not_started',
+            full_name: user.user_metadata?.full_name || '',
+            avatar_url: user.user_metadata?.avatar_url || '',
+            created_at: currentTime,
+          })
+          .single();
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+          if (toast) {
+            toast({
+              variant: 'destructive',
+              title: 'Profile Creation Warning',
+              description: 'Account verified but profile setup incomplete. Please contact support if issues persist.',
+            });
+          }
+        } else {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('✅ User profile created successfully for Google sign-in');
+          }
+        }
+      } else if (profileCheckError) {
+        // Some other error occurred
+        console.error('Error checking user profile:', profileCheckError);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Profile Check Warning',
+            description: 'Account verified but profile check failed. Please contact support if issues persist.',
+          });
+        }
+      } else {
+        // Profile already exists
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('✅ User profile already exists');
+        }
+      }
+    } catch (error) {
+      console.error('Error in createProfileIfNotExists:', error);
+    }
+  };
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -100,6 +161,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
+        
+        // Create profile if it doesn't exist (for Google sign-in)
+        await createProfileIfNotExists(supabase, session.user);
+        
+        // Then refresh the profile data
         await refreshProfile(supabase, session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
