@@ -101,25 +101,30 @@ function VerifyOTPContent() {
         }
 
         if (session?.user) {
-          // Check if profile exists in users table
+          // Check if profile exists in profiles table
           const { data: existingProfile, error: profileCheckError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('id', session.user.id)
+            .from('profiles')
+            .select('user_id')
+            .eq('user_id', session.user.id)
             .single();
 
           // If profile doesn't exist, create it
           if (profileCheckError && profileCheckError.code === 'PGRST116') {
             // PGRST116 means no rows returned, so profile doesn't exist
+            const currentTime = new Date().toISOString();
+            
             const { error: insertError } = await supabase
-              .from('users')
+              .from('profiles')
               .insert({
-                id: session.user.id,
+                user_id: session.user.id,
                 email: phone, // Using phone as email since we're using phone auth
                 user_type: 'user',
-                onboarding_step: 'not_started',
-                created_at: new Date().toISOString(),
-              });
+                full_name: '',
+                avatar_url: '',
+                created_at: currentTime,
+                updated_at: currentTime,
+              })
+              .single();
 
             if (insertError) {
               console.error('Error creating user profile:', insertError);
