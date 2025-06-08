@@ -14,6 +14,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate Saudi phone number format
+    const phoneRegex = /^\+966[5][0-9]{8}$/;
+    if (!phoneRegex.test(phone)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid Saudi mobile number' },
+        { status: 400 }
+      );
+    }
+
     // Validate OTP code format (6 digits)
     const otpRegex = /^\d{6}$/;
     if (!otpRegex.test(otp_code)) {

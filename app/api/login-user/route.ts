@@ -14,11 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate phone number format
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    // Validate Saudi phone number format
+    const phoneRegex = /^\+966[5][0-9]{8}$/;
     if (!phoneRegex.test(phone)) {
       return NextResponse.json(
-        { error: 'Invalid phone number format' },
+        { error: 'Please enter a valid Saudi mobile number' },
         { status: 400 }
       );
     }

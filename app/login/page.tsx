@@ -80,12 +80,12 @@ export default function LoginPage() {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="+1 (555) 123-4567"
+                placeholder="+966 5XXXXXXXX"
                 {...register('phone', {
                   required: 'Phone number is required',
                   pattern: {
-                    value: /^\+?[1-9]\d{1,14}$/,
-                    message: 'Please enter a valid phone number',
+                    value: /^\+966[5][0-9]{8}$/,
+                    message: 'Please enter a valid Saudi mobile number',
                   },
                 })}
                 disabled={isLoading}
@@ -95,7 +95,7 @@ export default function LoginPage() {
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                Include country code (e.g., +1 for US)
+                Use your Saudi mobile number (e.g., +966 5XXXXXXX)
               </p>
             </div>
 
