@@ -77,8 +77,8 @@ export default function Navbar() {
     if (user) {
       return (
         <>
-          <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-            Dashboard
+          <Button variant="ghost" onClick={() => router.push('/storybook/library')}>
+            My Stories
           </Button>
           <Button variant="outline" onClick={handleSignOut}>
             Sign Out
@@ -88,7 +88,7 @@ export default function Navbar() {
     }
     return (
       <>
-        <Button variant="ghost" onClick={() => router.push('/login')}>
+        <Button variant="ghost" onClick={() => router.push('/auth')}>
           Sign In
         </Button>
         <Button onClick={() => router.push('/create')}>
@@ -103,10 +103,10 @@ export default function Navbar() {
       return (
         <>
           <Button variant="outline" onClick={() => {
-            router.push('/dashboard');
+            router.push('/storybook/library');
             setIsOpen(false);
           }}>
-            Dashboard
+            My Stories
           </Button>
           <Button variant="destructive" onClick={handleSignOut}>
             Sign Out
@@ -117,7 +117,7 @@ export default function Navbar() {
     return (
       <>
         <Button variant="outline" onClick={() => {
-          router.push('/login');
+          router.push('/auth');
           setIsOpen(false);
         }}>
           Sign In

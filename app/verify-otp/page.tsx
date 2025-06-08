@@ -33,7 +33,7 @@ function VerifyOTPContent() {
 
   useEffect(() => {
     if (!phone) {
-      router.push('/login');
+      router.push('/auth');
     }
   }, [phone, router]);
 
@@ -149,6 +149,7 @@ function VerifyOTPContent() {
                 disabled={isLoading}
                 className="text-center text-2xl tracking-widest font-mono"
                 autoComplete="one-time-code"
+                autoFocus
               />
               {errors.otp_code && (
                 <p className="text-sm text-destructive">{errors.otp_code.message}</p>
@@ -196,11 +197,11 @@ function VerifyOTPContent() {
             <div className="text-center">
               <Button
                 variant="ghost"
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/auth')}
                 className="text-sm"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
+                Back to Sign In
               </Button>
             </div>
           </div>
