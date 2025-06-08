@@ -53,6 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await refreshProfile(client, session.user.id);
         }
         setIsLoading(false);
+
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('🔐 Loaded session:', session);
+        }
       } catch (error) {
         console.error('Failed to initialize Supabase:', error);
         setIsLoading(false);
@@ -62,12 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initSupabase();
   }, []);
 
-  const refreshProfile = async (client = supabase, userId = user?.id) => {
+  const refreshProfile = async (client = supabase, userId = user?.id): Promise<void> => {
     if (!client || !userId) return;
 
     try {
       const { data: profileData, error: profileError } = await client
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -78,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (profileData) {
         setProfile(profileData as Profile);
+        
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('👤 Profile:', profileData);
+        }
       }
     } catch (error) {
       console.error('Error refreshing profile:', error);
@@ -90,10 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
+      if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         await refreshProfile(supabase, session.user.id);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
       }
@@ -107,12 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
-  const updateOnboardingStep = async (step: Profile['onboarding_step']) => {
+  const updateOnboardingStep = async (step: Profile['onboarding_step']): Promise<void> => {
     if (!user?.id || !supabase) return;
 
     try {
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ onboarding_step: step })
         .eq('id', user.id);
 
@@ -130,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const saveAnonymousProgress = async () => {
+  const saveAnonymousProgress = async (): Promise<void> => {
     if (!user || !progress || !supabase) return;
 
     try {
@@ -181,13 +189,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     if (!supabase) return;
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       if (router) {
-        router.push('/');
+        router.replace('/');
       }
     } catch (error: unknown) {
       if (toast) {
