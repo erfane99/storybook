@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Shield, ArrowLeft } from 'lucide-react';
+import { getClientSupabase } from '@/lib/supabase/client';
 
 interface VerifyFormData {
   otp_code: string;
@@ -22,6 +23,7 @@ function VerifyOTPContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const phone = searchParams.get('phone');
+  const supabase = getClientSupabase();
 
   const {
     register,
@@ -70,6 +72,7 @@ function VerifyOTPContent() {
     setIsLoading(true);
 
     try {
+      // First, verify the OTP
       const response = await fetch('/api/verify-otp', {
         method: 'POST',
         headers: {
@@ -85,6 +88,73 @@ function VerifyOTPContent() {
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to verify OTP');
+      }
+
+      // OTP verification successful, now handle user profile creation
+      try {
+        // Get the current session/user
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw new Error('Failed to get user session');
+        }
+
+        if (session?.user) {
+          // Check if profile exists in users table
+          const { data: existingProfile, error: profileCheckError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+
+          // If profile doesn't exist, create it
+          if (profileCheckError && profileCheckError.code === 'PGRST116') {
+            // PGRST116 means no rows returned, so profile doesn't exist
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: session.user.id,
+                email: phone, // Using phone as email since we're using phone auth
+                user_type: 'user',
+                onboarding_step: 'not_started',
+                created_at: new Date().toISOString(),
+              });
+
+            if (insertError) {
+              console.error('Error creating user profile:', insertError);
+              // Don't throw here - user is authenticated, profile creation is secondary
+              toast({
+                variant: 'destructive',
+                title: 'Profile Creation Warning',
+                description: 'Account verified but profile setup incomplete. Please contact support if issues persist.',
+              });
+            } else {
+              console.log('✅ User profile created successfully');
+            }
+          } else if (profileCheckError) {
+            // Some other error occurred
+            console.error('Error checking user profile:', profileCheckError);
+            toast({
+              variant: 'destructive',
+              title: 'Profile Check Warning',
+              description: 'Account verified but profile check failed. Please contact support if issues persist.',
+            });
+          } else {
+            // Profile already exists
+            console.log('✅ User profile already exists');
+          }
+        } else {
+          console.warn('No user session found after OTP verification');
+        }
+      } catch (profileError: any) {
+        console.error('Profile handling error:', profileError);
+        // Don't prevent login for profile errors
+        toast({
+          variant: 'destructive',
+          title: 'Profile Setup Warning',
+          description: 'Account verified but profile setup incomplete. You can continue using the app.',
+        });
       }
 
       toast({
