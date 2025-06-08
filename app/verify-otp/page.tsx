@@ -37,6 +37,18 @@ function VerifyOTPContent() {
     }
   }, [phone, router]);
 
+  // Auto-submit when 6 digits are entered
+  useEffect(() => {
+    if (otpCode && otpCode.length === 6 && !isLoading) {
+      // Small delay to ensure the user sees the complete input
+      const timer = setTimeout(() => {
+        handleSubmit(onSubmit)();
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [otpCode, isLoading, handleSubmit]);
+
   const onSubmit = async (data: VerifyFormData) => {
     if (!phone) return;
 
@@ -154,6 +166,12 @@ function VerifyOTPContent() {
               {errors.otp_code && (
                 <p className="text-sm text-destructive">{errors.otp_code.message}</p>
               )}
+              <p className="text-xs text-muted-foreground text-center">
+                {otpCode && otpCode.length === 6 && !isLoading 
+                  ? 'Auto-submitting...' 
+                  : 'Code will auto-submit when complete'
+                }
+              </p>
             </div>
 
             <Button
