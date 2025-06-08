@@ -77,7 +77,7 @@ export default function Navbar() {
     if (user) {
       return (
         <>
-          <Button variant="ghost\" onClick={() => router.push('/storybook/library')}>
+          <Button variant="ghost" onClick={() => router.push('/storybook/library')}>
             My Stories
           </Button>
           <Button variant="outline" onClick={handleSignOut}>
