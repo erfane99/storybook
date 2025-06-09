@@ -13,9 +13,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Import cache functions inside the handler to avoid build-time evaluation
+    // Dynamically import to avoid build-time evaluation issues
     const { getCachedImage } = await import('@/lib/supabase/image-cache');
-    
+    const { getCharacterPrompt } = await import('@/lib/utils/prompt-helpers');
+
+    // Debug: verify environment variable presence
+    console.log('🔐 OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY);
+    console.log('🌐 imageUrl:', imageUrl);
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured. Please check server environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
+      return NextResponse.json(
+        { error: 'Invalid OpenAI API key format' },
+        { status: 500 }
+      );
+    }
+
+    // Optional: check for cached cartoon image
     const cachedUrl = await getCachedImage(imageUrl, style);
     if (cachedUrl) {
       return NextResponse.json({
@@ -25,31 +45,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // TODO: Remove this console.log after debugging
-    console.log('🔑 OpenAI API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
-    console.log('🔍 API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OpenAI API key is missing from environment variables');
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please check server environment variables.' },
-        { status: 500 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key format');
-      return NextResponse.json(
-        { error: 'Invalid OpenAI API key format' },
-        { status: 500 }
-      );
-    }
-
-    console.log('🔍 Making request to OpenAI Vision API...');
-
-    // Import prompt helpers inside the handler
-    const { getCharacterPrompt } = await import('@/lib/utils/prompt-helpers');
-
+    // GPT-4o Vision request
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -61,7 +57,7 @@ export async function POST(request: Request) {
         messages: [
           {
             role: 'system',
-            content: getCharacterPrompt
+            content: getCharacterPrompt,
           },
           {
             role: 'user',
@@ -72,15 +68,13 @@ export async function POST(request: Request) {
               },
               {
                 type: 'image_url',
-                image_url: {
-                  url: imageUrl
-                }
+                image_url: { url: imageUrl }
               }
             ]
           }
         ],
-        max_tokens: 500
-      })
+        max_tokens: 500,
+      }),
     });
 
     console.log('📥 OpenAI response status:', response.status);
@@ -88,33 +82,24 @@ export async function POST(request: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       let errorData;
-      
       try {
         errorData = JSON.parse(errorText);
       } catch (parseError) {
-        console.error('❌ Failed to parse OpenAI error response:', errorText);
-        throw new Error(`OpenAI API request failed with status ${response.status}: ${errorText}`);
+        throw new Error(`Failed to parse error: ${errorText}`);
       }
 
-      console.error('❌ OpenAI API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData
-      });
-
-      const errorMessage = errorData?.error?.message || `OpenAI API request failed with status ${response.status}`;
-      throw new Error(errorMessage);
+      const message = errorData?.error?.message || 'Unknown OpenAI error';
+      throw new Error(`OpenAI API Error: ${message}`);
     }
 
     const data = await response.json();
-    
+
     if (!data?.choices?.[0]?.message?.content) {
-      console.error('❌ Invalid OpenAI response structure:', data);
       throw new Error('Invalid response from OpenAI API - no content received');
     }
 
     const description = data.choices[0].message.content;
-    console.log('✅ Successfully described image');
+    console.log('✅ Image described successfully');
 
     return NextResponse.json({
       cached: false,
