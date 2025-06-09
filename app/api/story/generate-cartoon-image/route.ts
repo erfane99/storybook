@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCachedCartoonImage, saveCartoonImageToCache } from '@/lib/supabase/cartoon-cache';
 import { headers } from 'next/headers';
 
 export const maxDuration = 300; // Set max duration for edge function
@@ -36,6 +35,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ url: cache.get(cacheKey), reused: true });
     }
 
+    // Import cache functions inside the handler to avoid build-time evaluation
+    const { getCachedCartoonImage, saveCartoonImageToCache } = await import('@/lib/supabase/cartoon-cache');
+    
     // Check Supabase cache
     const cachedUrl = await getCachedCartoonImage(cartoon_image, style, user_id);
     if (cachedUrl) {

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -246,6 +245,9 @@ ${config.prompt}
     const { scenesText } = await scenesResponse.json();
     const { pages } = JSON.parse(scenesText);
 
+    // Import Supabase client inside the handler to avoid build-time evaluation
+    const { createClient } = await import('@supabase/supabase-js');
+    
     // Save to storybook_entries
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

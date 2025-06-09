@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { jwtDecode } from 'jwt-decode';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +41,9 @@ export async function GET(request: Request) {
         );
       }
 
+      // Import Supabase client inside the handler to avoid build-time evaluation
+      const { createClient } = await import('@supabase/supabase-js');
+      
       // Initialize Supabase client
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

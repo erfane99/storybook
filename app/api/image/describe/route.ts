@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCharacterPrompt } from '@/lib/utils/prompt-helpers';
-import { getCachedImage } from '@/lib/supabase/image-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +13,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Import cache functions inside the handler to avoid build-time evaluation
+    const { getCachedImage } = await import('@/lib/supabase/image-cache');
+    
     const cachedUrl = await getCachedImage(imageUrl, style);
     if (cachedUrl) {
       return NextResponse.json({
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
     }
 
     console.log('🔍 Making request to OpenAI Vision API...');
+
+    // Import prompt helpers inside the handler
+    const { getCharacterPrompt } = await import('@/lib/utils/prompt-helpers');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
