@@ -19,6 +19,12 @@ interface Page {
 
 export async function POST(request: Request) {
   try {
+    // Validate environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('❌ Missing Supabase environment variables');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     // Initialize server-side Supabase client
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient(
@@ -39,11 +45,6 @@ export async function POST(request: Request) {
     }
 
     const useMock = process.env.USE_MOCK === 'true';
-
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing Supabase environment variables');
-      return NextResponse.json({ error: 'Server config error' }, { status: 500 });
-    }
 
     const { title, story, characterImage, pages, audience, isReusedImage } = await request.json();
 
