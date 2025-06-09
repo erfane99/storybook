@@ -15,9 +15,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // TODO: Remove this console.log after debugging
+    console.log('🔑 OpenAI API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
+    console.log('🔍 API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
+
     if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ OpenAI API key is missing from environment variables');
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: 'OpenAI API key not configured. Please check server environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
+      console.error('❌ Invalid OpenAI API key format');
+      return NextResponse.json(
+        { error: 'Invalid OpenAI API key format' },
         { status: 500 }
       );
     }
@@ -33,6 +46,8 @@ export async function POST(request: Request) {
     const stylePrompt = stylePrompts[style as keyof typeof stylePrompts] || stylePrompts['semi-realistic'];
     const finalPrompt = `Create a cartoon-style portrait of the person described below. Focus on accurate facial features and clothing details. ${cleanPrompt}. ${stylePrompt}`;
 
+    console.log('🎨 Making request to OpenAI DALL-E API...');
+    
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
@@ -49,24 +64,61 @@ export async function POST(request: Request) {
       }),
     });
 
+    console.log('📥 OpenAI response status:', response.status);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Failed to generate image');
+      const errorText = await response.text();
+      let errorData;
+      
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (parseError) {
+        console.error('❌ Failed to parse OpenAI error response:', errorText);
+        throw new Error(`OpenAI API request failed with status ${response.status}: ${errorText}`);
+      }
+
+      console.error('❌ OpenAI API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+
+      const errorMessage = errorData?.error?.message || `OpenAI API request failed with status ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
+    
+    if (!data?.data?.[0]?.url) {
+      console.error('❌ Invalid OpenAI response structure:', data);
+      throw new Error('Invalid response from OpenAI API - no image URL received');
+    }
+
     const generatedUrl = data.data[0].url;
+    console.log('✅ Successfully generated image');
 
     if (user_id) {
-      await saveToCache(prompt, generatedUrl, style, user_id);
+      try {
+        await saveToCache(prompt, generatedUrl, style, user_id);
+        console.log('✅ Saved to cache');
+      } catch (cacheError) {
+        console.error('⚠️ Failed to save to cache:', cacheError);
+        // Don't fail the request if caching fails
+      }
     }
 
     return NextResponse.json({ url: generatedUrl });
   } catch (error: any) {
+    console.error('❌ Cartoonize API Error:', {
+      message: error.message,
+      stack: error.stack,
+      details: error.response?.data || error.toString()
+    });
+
     return NextResponse.json(
       { 
         error: error.message || 'Failed to cartoonize image',
-        details: error.response?.data || error.toString()
+        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       },
       { status: 500 }
     );
