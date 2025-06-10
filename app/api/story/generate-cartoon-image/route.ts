@@ -19,16 +19,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!openaiApiKey.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key format');
-      return NextResponse.json(
-        { 
-          error: 'Invalid OpenAI API key format. Key should start with "sk-".',
-          configurationError: true
-        },
-        { status: 500 }
-      );
-    }
+    // Removed strict format validation - OpenAI now uses multiple key formats (sk-, sk-proj-, etc.)
+    console.log('🔑 OpenAI API Key found, length:', openaiApiKey.length);
 
     const {
       image_prompt,
