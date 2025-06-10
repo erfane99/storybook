@@ -56,7 +56,12 @@ export async function getCachedImage(
       return null;
     }
 
-    return data?.cartoon_url || null;
+    // Explicit type handling for the return value
+    if (data && typeof data === 'object' && 'cartoon_url' in data) {
+      return (data.cartoon_url as string) || null;
+    }
+
+    return null;
   } catch (error) {
     console.warn('⚠️ Cache lookup error:', error);
     return null;
@@ -133,7 +138,12 @@ export async function getCachedCartoonImage(
       return null;
     }
 
-    return data?.cartoonized_url || null;
+    // Explicit type handling for the return value
+    if (data && typeof data === 'object' && 'cartoonized_url' in data) {
+      return (data.cartoonized_url as string) || null;
+    }
+
+    return null;
   } catch (error) {
     console.warn('⚠️ Cartoon cache lookup error:', error);
     return null;
