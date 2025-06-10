@@ -141,7 +141,7 @@ export function JobStatusCard({
 
           <div className="flex items-center gap-1">
             {isCompleted && onView && (
-              <Button variant="ghost" size="sm" onClick={onView}>
+              <Button variant="ghost\" size="sm\" onClick={onView}>
                 <Eye className="h-4 w-4" />
               </Button>
             )}
@@ -281,7 +281,7 @@ export function JobStatusCard({
             {isCompleted && (
               <div className="flex gap-2 pt-2">
                 {onView && (
-                  <Button variant="outline" size="sm" onClick={onView}>
+                  <Button variant="outline\" size="sm\" onClick={onView}>
                     <Eye className="h-4 w-4 mr-1" />
                     View Result
                   </Button>
