@@ -1,318 +1,168 @@
-import type { Context } from "https://edge.netlify.com";
+import { Context } from '@netlify/edge-functions';
 
-interface ProcessingResult {
-  success: boolean;
-  processed: number;
-  errors: number;
-  message: string;
-  timestamp: string;
-}
-
-interface EdgeFunctionConfig {
-  processingInterval: number;
-  maxProcessingTime: number;
-  maxJobsPerRun: number;
-  enableDistributedLocking: boolean;
-  healthCheckEndpoint: string;
-  processingEndpoint: string;
-}
-
-// Configuration
-const config: EdgeFunctionConfig = {
-  processingInterval: 30000, // 30 seconds
-  maxProcessingTime: 25000, // 25 seconds (leave buffer for edge function timeout)
-  maxJobsPerRun: 5,
-  enableDistributedLocking: true,
-  healthCheckEndpoint: '/api/jobs/health',
-  processingEndpoint: '/api/jobs/process',
-};
-
-// Distributed processing coordination
-class DistributedLock {
-  private static locks = new Map<string, { timestamp: number; region: string }>();
-  private static lockTimeout = 60000; // 1 minute
-
-  static async acquireLock(key: string, region: string): Promise<boolean> {
-    const now = Date.now();
-    const existing = this.locks.get(key);
-
-    // Clean up expired locks
-    if (existing && now - existing.timestamp > this.lockTimeout) {
-      this.locks.delete(key);
-    }
-
-    // Check if lock is available
-    const currentLock = this.locks.get(key);
-    if (currentLock && currentLock.region !== region) {
-      return false; // Lock held by another region
-    }
-
-    // Acquire or refresh lock
-    this.locks.set(key, { timestamp: now, region });
-    return true;
-  }
-
-  static releaseLock(key: string, region: string): void {
-    const existing = this.locks.get(key);
-    if (existing && existing.region === region) {
-      this.locks.delete(key);
-    }
-  }
-
-  static isLocked(key: string): boolean {
-    const existing = this.locks.get(key);
-    if (!existing) return false;
-    
-    const now = Date.now();
-    if (now - existing.timestamp > this.lockTimeout) {
-      this.locks.delete(key);
-      return false;
-    }
-    
-    return true;
-  }
-}
-
-// Main edge function handler
-export default async function handler(request: Request, context: Context) {
-  const startTime = Date.now();
-  const region = context.geo?.region || 'unknown';
-  const lockKey = 'job-processing';
-
-  console.log(`🌍 Edge function triggered in region: ${region}`);
-
+// Edge function for automatic job processing
+export default async (request: Request, context: Context) => {
   try {
-    // Only process on POST requests or scheduled triggers
-    if (request.method !== 'POST' && !isScheduledTrigger(request)) {
-      return new Response(JSON.stringify({
-        message: 'Edge function is healthy',
-        region,
-        timestamp: new Date().toISOString(),
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Distributed locking to prevent multiple regions processing simultaneously
-    if (config.enableDistributedLocking) {
-      const lockAcquired = await DistributedLock.acquireLock(lockKey, region);
-      if (!lockAcquired) {
-        console.log(`🔒 Processing lock held by another region, skipping`);
-        return new Response(JSON.stringify({
-          success: true,
-          message: 'Processing handled by another region',
-          region,
-          timestamp: new Date().toISOString(),
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    try {
-      // Get site URL from environment or request
-      const siteUrl = getSiteUrl(request);
-      
-      // Health check first
-      const healthResult = await performHealthCheck(siteUrl);
-      if (!healthResult.healthy) {
-        console.log(`❌ Health check failed: ${healthResult.message}`);
-        return createErrorResponse('System health check failed', healthResult);
-      }
-
-      // Process jobs
-      const processingResult = await processJobs(siteUrl, region);
-      
-      // Calculate processing time
-      const processingTime = Date.now() - startTime;
-      
-      console.log(`✅ Edge function completed in ${processingTime}ms`);
-      
-      return new Response(JSON.stringify({
-        ...processingResult,
-        region,
-        processingTime,
-        timestamp: new Date().toISOString(),
-      }), {
-        status: 200,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      });
-
-    } finally {
-      // Always release the lock
-      if (config.enableDistributedLocking) {
-        DistributedLock.releaseLock(lockKey, region);
-      }
-    }
-
-  } catch (error: any) {
-    console.error(`❌ Edge function error in region ${region}:`, error);
+    console.log('🔄 Edge function triggered for job processing');
     
-    return createErrorResponse('Edge function processing failed', {
-      error: error.message,
-      region,
-      timestamp: new Date().toISOString(),
-    });
-  }
-}
-
-// Perform system health check
-async function performHealthCheck(siteUrl: string): Promise<{ healthy: boolean; message: string; details?: any }> {
-  try {
-    const healthUrl = `${siteUrl}${config.healthCheckEndpoint}`;
+    // Get site URL from context
+    const siteUrl = context.site.url || 'http://localhost:3000';
     
-    const response = await fetch(healthUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Netlify-Edge-Function/1.0',
-      },
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    });
-
-    if (!response.ok) {
-      return {
-        healthy: false,
-        message: `Health check returned ${response.status}`,
-        details: { status: response.status, statusText: response.statusText },
-      };
-    }
-
-    const healthData = await response.json();
+    // Create a unique ID for this processing run
+    const processingId = `edge_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
-    if (healthData.status === 'critical') {
-      return {
-        healthy: false,
-        message: 'System is in critical state',
-        details: healthData,
-      };
-    }
-
-    return {
-      healthy: true,
-      message: 'System is healthy',
-      details: healthData,
-    };
-
-  } catch (error: any) {
-    console.error('❌ Health check failed:', error);
-    return {
-      healthy: false,
-      message: 'Health check request failed',
-      details: { error: error.message },
-    };
-  }
-}
-
-// Process background jobs
-async function processJobs(siteUrl: string, region: string): Promise<ProcessingResult> {
-  try {
-    const processUrl = `${siteUrl}${config.processingEndpoint}`;
-    
-    const requestBody = {
-      maxJobs: config.maxJobsPerRun,
-      forceProcessing: true,
-      source: 'edge-function',
-      region,
-      cleanup: shouldRunCleanup(),
-    };
-
-    const response = await fetch(processUrl, {
+    // Check if another edge function is already processing
+    // This prevents multiple edge functions from processing the same jobs
+    const lockResponse = await fetch(`${siteUrl}/.netlify/functions/job-lock`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Netlify-Edge-Function/1.0',
       },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(config.maxProcessingTime),
+      body: JSON.stringify({
+        processingId,
+        action: 'acquire',
+      }),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Processing request failed: ${response.status} - ${errorText}`);
+    
+    if (!lockResponse.ok) {
+      const lockData = await lockResponse.json();
+      
+      if (lockData.locked) {
+        console.log(`⏳ Another process is already running: ${lockData.owner}`);
+        return new Response(JSON.stringify({
+          status: 'skipped',
+          reason: 'Another process is already running',
+          owner: lockData.owner,
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
     }
-
-    const result = await response.json();
     
-    return {
-      success: true,
-      processed: result.processed || 0,
-      errors: result.errors || 0,
-      message: result.message || 'Processing completed',
-      timestamp: new Date().toISOString(),
-    };
-
-  } catch (error: any) {
-    console.error('❌ Job processing failed:', error);
+    // Perform health check first
+    console.log('🏥 Performing health check');
+    const healthResponse = await fetch(`${siteUrl}/api/jobs/health/optimized`, {
+      headers: {
+        'User-Agent': 'netlify-edge-function',
+      },
+    });
     
-    return {
-      success: false,
-      processed: 0,
-      errors: 1,
-      message: error.message || 'Processing failed',
+    if (!healthResponse.ok) {
+      console.log('❌ Health check failed');
+      return new Response(JSON.stringify({
+        status: 'error',
+        message: 'Health check failed',
+        statusCode: healthResponse.status,
+      }), {
+        status: 200, // Return 200 to prevent retries
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+    
+    const healthData = await healthResponse.json();
+    
+    if (healthData.status !== 'healthy') {
+      console.log(`⚠️ System health is ${healthData.status}`);
+      
+      // Continue only if queue depth is high
+      if (healthData.queueDepth <= 5) {
+        return new Response(JSON.stringify({
+          status: 'skipped',
+          reason: `System health is ${healthData.status}`,
+          queueDepth: healthData.queueDepth,
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
+      console.log('🚨 Queue depth is high, continuing despite health warning');
+    }
+    
+    // Process jobs
+    console.log('🔄 Processing jobs');
+    const processResponse = await fetch(`${siteUrl}/api/jobs/process`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'netlify-edge-function',
+        'X-Processing-ID': processingId,
+      },
+      body: JSON.stringify({
+        maxJobs: 5,
+        forceProcessing: healthData.status !== 'healthy',
+      }),
+    });
+    
+    if (!processResponse.ok) {
+      console.log('❌ Job processing failed');
+      return new Response(JSON.stringify({
+        status: 'error',
+        message: 'Job processing failed',
+        statusCode: processResponse.status,
+      }), {
+        status: 200, // Return 200 to prevent retries
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+    
+    const processData = await processResponse.json();
+    
+    // Release lock
+    await fetch(`${siteUrl}/.netlify/functions/job-lock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        processingId,
+        action: 'release',
+      }),
+    });
+    
+    console.log(`✅ Processed ${processData.processed} jobs`);
+    
+    // Return success response
+    return new Response(JSON.stringify({
+      status: 'success',
+      processed: processData.processed,
+      errors: processData.errors,
+      skipped: processData.skipped,
       timestamp: new Date().toISOString(),
-    };
+      processingId,
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Edge function error:', error);
+    
+    return new Response(JSON.stringify({
+      status: 'error',
+      message: error.message || 'Unknown error',
+      timestamp: new Date().toISOString(),
+    }), {
+      status: 200, // Return 200 to prevent retries
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
-}
+};
 
-// Determine if this is a scheduled trigger
-function isScheduledTrigger(request: Request): boolean {
-  // Check for scheduled trigger indicators
-  const userAgent = request.headers.get('user-agent') || '';
-  const scheduledHeaders = [
-    'netlify-cron',
-    'github-actions',
-    'vercel-cron',
-  ];
-
-  return scheduledHeaders.some(header => 
-    userAgent.toLowerCase().includes(header) ||
-    request.headers.get('x-scheduled-by')?.toLowerCase().includes(header)
-  );
-}
-
-// Get site URL from environment or request
-function getSiteUrl(request: Request): string {
-  // Try environment variable first
-  const envUrl = Deno.env.get('SITE_URL') || Deno.env.get('URL');
-  if (envUrl) {
-    return envUrl;
-  }
-
-  // Extract from request
-  const url = new URL(request.url);
-  return `${url.protocol}//${url.host}`;
-}
-
-// Determine if cleanup should run (e.g., once per hour)
-function shouldRunCleanup(): boolean {
-  const now = new Date();
-  // Run cleanup at the top of each hour
-  return now.getMinutes() < 2;
-}
-
-// Create standardized error response
-function createErrorResponse(message: string, details: any): Response {
-  return new Response(JSON.stringify({
-    success: false,
-    error: message,
-    details,
-    timestamp: new Date().toISOString(),
-  }), {
-    status: 500,
-    headers: { 
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-    },
-  });
-}
-
-// Configuration for Netlify Edge Functions
+// Configure edge function
 export const config = {
-  path: "/api/edge/process-jobs",
-  cache: "manual",
+  path: '/api/edge/process-jobs',
+  cache: 'manual',
 };
