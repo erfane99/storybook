@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jobWorker } from '@/lib/background-jobs/worker';
 import { jobManager } from '@/lib/background-jobs/job-manager';
+import { jobConfig } from '@/lib/background-jobs/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,9 @@ export async function POST(request: Request) {
       maxJobs = 10, 
       specificJobId, 
       cleanup = false, 
-      cleanupDays = 7 
+      cleanupDays = 7,
+      forceProcessing = false,
+      jobTypes = [],
     } = body;
 
     console.log('🔄 Manual job processing triggered');
@@ -28,6 +31,7 @@ export async function POST(request: Request) {
       processed: 0,
       errors: 0,
       skipped: 0,
+      configuration: jobConfig.getConfigSummary(),
     };
 
     // Health check first
@@ -37,6 +41,15 @@ export async function POST(request: Request) {
         error: 'Job processing system is not healthy',
         health: await jobWorker.getQueueStatus(),
       }, { status: 503 });
+    }
+
+    // Check if auto-processing is enabled (unless forced)
+    if (!forceProcessing && !jobConfig.isFeatureEnabled('enableAutoProcessing')) {
+      return NextResponse.json({
+        ...results,
+        error: 'Automatic processing is disabled',
+        message: 'Use forceProcessing=true to override this setting',
+      }, { status: 400 });
     }
 
     // Process specific job if requested
@@ -53,21 +66,39 @@ export async function POST(request: Request) {
     } else {
       // Process multiple jobs
       console.log(`📋 Processing up to ${maxJobs} jobs`);
-      const stats = await jobWorker.processJobs(maxJobs);
+      
+      // Apply job type filter if specified
+      const filter: any = {};
+      if (jobTypes.length > 0) {
+        filter.types = jobTypes;
+        results.filteredTypes = jobTypes;
+      }
+
+      const stats = await jobWorker.processJobs(maxJobs, filter);
       
       results.processed = stats.processed;
       results.errors = stats.errors;
       results.skipped = stats.skipped;
+      results.details = stats.details || [];
     }
 
     // Optional cleanup
     if (cleanup) {
       console.log(`🧹 Running cleanup (${cleanupDays} days)`);
-      const cleaned = await jobWorker.cleanup(cleanupDays);
-      results.cleanup = {
-        cleaned,
-        olderThanDays: cleanupDays,
-      };
+      try {
+        const { jobMonitor } = await import('@/lib/background-jobs/monitor');
+        const cleaned = await jobMonitor.cleanupOldJobs(cleanupDays);
+        results.cleanup = {
+          cleaned,
+          olderThanDays: cleanupDays,
+        };
+      } catch (cleanupError) {
+        console.error('❌ Cleanup failed:', cleanupError);
+        results.cleanup = {
+          error: 'Cleanup failed',
+          details: cleanupError.message,
+        };
+      }
     }
 
     // Get current queue status
@@ -77,6 +108,16 @@ export async function POST(request: Request) {
     // Get job statistics
     const jobStats = await jobManager.getJobStats();
     results.statistics = jobStats;
+
+    // Add performance metrics
+    results.performance = {
+      processingRate: results.processed > 0 ? results.processed / (Date.now() - new Date(results.timestamp).getTime()) * 1000 : 0,
+      errorRate: results.processed > 0 ? (results.errors / (results.processed + results.errors)) * 100 : 0,
+      efficiency: results.processed > 0 ? (results.processed / (results.processed + results.skipped)) * 100 : 0,
+    };
+
+    // Add recommendations based on results
+    results.recommendations = generateRecommendations(results, queueStatus);
 
     console.log(`✅ Manual processing complete: ${results.processed} processed, ${results.errors} errors`);
 
@@ -91,7 +132,12 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString(),
         processed: 0,
         errors: 1,
-        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined,
+        recommendations: [
+          'Check system logs for detailed error information',
+          'Verify database connectivity',
+          'Ensure all required environment variables are set',
+        ],
       },
       { status: 500 }
     );
@@ -103,6 +149,7 @@ export async function GET() {
   try {
     const queueStatus = await jobWorker.getQueueStatus();
     const jobStats = await jobManager.getJobStats();
+    const configSummary = jobConfig.getConfigSummary();
     
     return NextResponse.json({
       timestamp: new Date().toISOString(),
@@ -110,6 +157,13 @@ export async function GET() {
       worker: jobWorker.getStats(),
       queue: queueStatus,
       statistics: jobStats,
+      configuration: configSummary,
+      features: {
+        autoProcessing: jobConfig.isFeatureEnabled('enableAutoProcessing'),
+        priorityProcessing: jobConfig.isFeatureEnabled('enablePriorityProcessing'),
+        metricsCollection: jobConfig.isFeatureEnabled('enableMetricsCollection'),
+        healthChecks: jobConfig.isFeatureEnabled('enableHealthChecks'),
+      },
     });
 
   } catch (error: any) {
@@ -136,4 +190,35 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
+}
+
+function generateRecommendations(results: any, queueStatus: any): string[] {
+  const recommendations: string[] = [];
+
+  // Queue depth recommendations
+  if (queueStatus.pending > 20) {
+    recommendations.push('High queue depth detected - consider increasing processing frequency');
+  }
+
+  // Error rate recommendations
+  if (results.performance.errorRate > 10) {
+    recommendations.push('High error rate detected - investigate failing jobs');
+  }
+
+  // Processing efficiency recommendations
+  if (results.performance.efficiency < 80) {
+    recommendations.push('Low processing efficiency - check for stuck or problematic jobs');
+  }
+
+  // No jobs processed recommendations
+  if (results.processed === 0 && queueStatus.pending > 0) {
+    recommendations.push('No jobs processed despite pending queue - check system health');
+  }
+
+  // Success recommendations
+  if (results.processed > 0 && results.errors === 0) {
+    recommendations.push('Processing completed successfully - system operating normally');
+  }
+
+  return recommendations;
 }
