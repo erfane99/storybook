@@ -19,19 +19,46 @@ interface Page {
 
 export async function POST(request: Request) {
   try {
-    // Validate environment variables
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Comprehensive environment variable validation
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('❌ Missing Supabase environment variables');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Database configuration error. Please check Supabase environment variables.',
+        configurationError: true
+      }, { status: 500 });
+    }
+
+    if (!openaiApiKey) {
+      console.error('❌ OPENAI_API_KEY environment variable is missing');
+      return NextResponse.json(
+        { 
+          error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in your environment variables.',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!openaiApiKey.startsWith('sk-')) {
+      console.error('❌ Invalid OpenAI API key format');
+      return NextResponse.json(
+        { 
+          error: 'Invalid OpenAI API key format. Key should start with "sk-".',
+          configurationError: true
+        },
+        { status: 500 }
+      );
     }
 
     // Initialize server-side Supabase client
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient(
-      {
-        cookies: () => cookieStore,
-      }
-    );
+    const supabase = createRouteHandlerClient({
+      cookies: () => cookieStore,
+    });
 
     // Get authenticated user
     const {
@@ -68,29 +95,37 @@ export async function POST(request: Request) {
       }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-      : 'http://localhost:3000';
+    // Dynamic base URL detection from request headers
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    console.log('🌐 Detected base URL:', baseUrl);
 
     let characterDescription = '';
 
     if (!isReusedImage) {
       console.log('🔍 Getting character description...');
-      const describeResponse = await fetch(`${baseUrl}/api/image/describe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: characterImage }),
-      });
+      try {
+        const describeResponse = await fetch(`${baseUrl}/api/image/describe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: characterImage }),
+        });
 
-      if (!describeResponse.ok) {
-        const errorText = await describeResponse.text();
-        console.error('Failed to get character description:', errorText);
-        return NextResponse.json({ error: 'Failed to process character image' }, { status: 500 });
+        if (!describeResponse.ok) {
+          const errorText = await describeResponse.text();
+          console.error('Failed to get character description:', errorText);
+          throw new Error('Failed to process character image');
+        }
+
+        const { characterDescription: description } = await describeResponse.json();
+        characterDescription = description;
+        console.log('✅ Character description:', characterDescription);
+      } catch (descError) {
+        console.warn('⚠️ Character description failed, continuing without it:', descError);
+        characterDescription = 'a cartoon character';
       }
-
-      const { description } = await describeResponse.json();
-      characterDescription = description;
-      console.log('✅ Character description:', characterDescription);
     }
 
     const updatedPages: Page[] = [];
@@ -116,6 +151,7 @@ export async function POST(request: Request) {
               audience,
               isReusedImage,
               cartoon_image: characterImage,
+              style: 'storybook', // Default style
             }),
           });
 
@@ -126,7 +162,7 @@ export async function POST(request: Request) {
             updatedScenes.push({
               ...scene,
               error: `Failed to generate image: ${errorText}`,
-              generatedImage: undefined,
+              generatedImage: characterImage, // Fallback to character image
             });
             continue;
           }
@@ -144,7 +180,7 @@ export async function POST(request: Request) {
           updatedScenes.push({
             ...scene,
             error: err.message || 'Failed to generate image',
-            generatedImage: undefined,
+            generatedImage: characterImage, // Fallback to character image
           });
         }
       }

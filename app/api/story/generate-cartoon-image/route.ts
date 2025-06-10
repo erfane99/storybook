@@ -1,14 +1,36 @@
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { getCachedCartoonImage, saveCartoonImageToCache } from '@/lib/supabase/cache-utils';
 
-export const maxDuration = 300; // Set max duration for edge function
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
-
-// Implement request caching
-const cache = new Map();
 
 export async function POST(request: Request) {
   try {
+    // Comprehensive environment variable validation
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    
+    if (!openaiApiKey) {
+      console.error('❌ OPENAI_API_KEY environment variable is missing');
+      return NextResponse.json(
+        { 
+          error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in your environment variables.',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!openaiApiKey.startsWith('sk-')) {
+      console.error('❌ Invalid OpenAI API key format');
+      return NextResponse.json(
+        { 
+          error: 'Invalid OpenAI API key format. Key should start with "sk-".',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
     const {
       image_prompt,
       character_description,
@@ -26,25 +48,17 @@ export async function POST(request: Request) {
 
     const useMock = process.env.USE_MOCK === 'true';
 
-    // Generate cache key
-    const cacheKey = `${cartoon_image}-${style}-${user_id}`;
-
-    // Check memory cache first
-    if (cache.has(cacheKey)) {
-      console.log('✅ Found in memory cache');
-      return NextResponse.json({ url: cache.get(cacheKey), reused: true });
-    }
-
-    // Import cache functions inside the handler to avoid build-time evaluation
-    const { getCachedCartoonImage, saveCartoonImageToCache } = await import('@/lib/supabase/cartoon-cache');
-    
-    // Check Supabase cache
-    const cachedUrl = await getCachedCartoonImage(cartoon_image, style, user_id);
-    if (cachedUrl) {
-      console.log('✅ Found cached cartoon image in Supabase');
-      // Update memory cache
-      cache.set(cacheKey, cachedUrl);
-      return NextResponse.json({ url: cachedUrl, reused: true });
+    // Check cache if user_id and cartoon_image are provided
+    if (user_id && cartoon_image) {
+      try {
+        const cachedUrl = await getCachedCartoonImage(cartoon_image, style, user_id);
+        if (cachedUrl) {
+          console.log('✅ Found cached cartoon image');
+          return NextResponse.json({ url: cachedUrl, reused: true });
+        }
+      } catch (cacheError) {
+        console.warn('⚠️ Cache lookup failed, continuing with generation:', cacheError);
+      }
     }
 
     if (useMock) {
@@ -55,26 +69,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // TODO: Remove this console.log after debugging
-    console.log('🔑 OpenAI API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
-    console.log('🔍 API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
+    console.log('🔑 OpenAI API Key configured correctly');
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OpenAI API key is missing from environment variables');
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please check server environment variables.' },
-        { status: 500 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key format');
-      return NextResponse.json(
-        { error: 'Invalid OpenAI API key format' },
-        { status: 500 }
-      );
-    }
-
+    // Inline audience styles to avoid import issues
     const audienceStyles = {
       children: 'Create a bright, clear illustration with simple shapes and warm colors. Focus on readability and emotional expression.',
       young_adults: 'Use dynamic composition with strong lines and detailed environments. Balance realism with stylized elements.',
@@ -94,7 +91,7 @@ export async function POST(request: Request) {
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -140,21 +137,13 @@ export async function POST(request: Request) {
     const imageUrl = data.data[0].url;
     console.log('✅ Successfully generated cartoon image');
 
-    // Update both caches
-    cache.set(cacheKey, imageUrl);
-    
-    try {
-      await saveCartoonImageToCache(cartoon_image, imageUrl, style, user_id);
-      console.log('✅ Saved to cache');
-    } catch (cacheError) {
-      console.error('⚠️ Failed to save to cache:', cacheError);
-      // Don't fail the request if caching fails
-    }
-
-    // Clean up old cache entries if cache gets too large
-    if (cache.size > 1000) {
-      const oldestKey = cache.keys().next().value;
-      cache.delete(oldestKey);
+    // Save to cache if possible
+    if (user_id && cartoon_image) {
+      try {
+        await saveCartoonImageToCache(cartoon_image, imageUrl, style, user_id);
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to save to cache (non-critical):', cacheError);
+      }
     }
 
     return NextResponse.json({

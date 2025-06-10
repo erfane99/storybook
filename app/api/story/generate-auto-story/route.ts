@@ -10,99 +10,43 @@ interface RequestBody {
   user_id?: string;
 }
 
-const genrePrompts = {
-  adventure: 'Create an exciting adventure story filled with discovery, challenges to overcome, and personal growth.',
-  siblings: 'Write a heartwarming story about the joys and challenges of sibling relationships, focusing on sharing, understanding, and family bonds.',
-  bedtime: 'Create a gentle, soothing bedtime story with calming imagery and a peaceful resolution that helps children transition to sleep.',
-  fantasy: 'Craft a magical tale filled with wonder, enchantment, and imaginative elements that spark creativity.',
-  history: 'Tell an engaging historical story that brings the past to life while weaving in educational elements naturally.',
-};
-
-const audienceConfig = {
-  children: {
-    prompt: `
-      Story Requirements:
-      - Use simple, clear language suitable for young readers
-      - Keep sentences short and direct
-      - Include repetitive elements and patterns
-      - Focus on positive themes and clear morals
-      - Create opportunities for interactive engagement
-      - Maintain a gentle pace with 5-8 distinct scenes
-      - Use familiar concepts and relatable situations
-      - Include moments of humor and playfulness
-      - Ensure emotional safety throughout the story
-      
-      Language Guidelines:
-      - Vocabulary: Simple, everyday words with occasional new terms explained through context
-      - Sentence Structure: Short, clear sentences with basic patterns
-      - Dialogue: Natural, age-appropriate conversations
-      - Descriptions: Vivid but straightforward, focusing on primary colors and basic emotions
-      
-      Emotional Elements:
-      - Clear emotional expressions
-      - Simple conflict resolution
-      - Emphasis on friendship, family, and kindness
-      - Positive reinforcement of good behavior
-      - Gentle handling of challenging situations`,
-    wordCount: '300-400',
-    scenes: '5-8'
-  },
-  young_adults: {
-    prompt: `
-      Story Requirements:
-      - Develop more complex character arcs and relationships
-      - Include meaningful personal growth and self-discovery
-      - Address relevant social and emotional themes
-      - Create engaging dialogue with distinct character voices
-      - Build tension and resolution across 8-12 scenes
-      - Incorporate subtle humor and wit
-      - Balance entertainment with deeper messages
-      
-      Language Guidelines:
-      - Vocabulary: Rich and varied, including metaphors and imagery
-      - Sentence Structure: Mix of simple and complex sentences
-      - Dialogue: Natural conversations that reveal character
-      - Descriptions: Detailed and evocative, painting clear mental pictures
-      
-      Emotional Elements:
-      - Complex emotional situations
-      - Realistic internal conflicts
-      - Exploration of relationships and identity
-      - Nuanced character development
-      - Meaningful resolution that allows for reflection`,
-    wordCount: '600-800',
-    scenes: '8-12'
-  },
-  adults: {
-    prompt: `
-      Story Requirements:
-      - Craft sophisticated narrative structures
-      - Develop layered character relationships
-      - Explore complex themes and moral ambiguity
-      - Create subtle, nuanced dialogue
-      - Build a rich narrative across 10-15 scenes
-      - Include symbolic and metaphorical elements
-      - Address mature themes thoughtfully
-      
-      Language Guidelines:
-      - Vocabulary: Sophisticated and precise
-      - Sentence Structure: Complex and varied
-      - Dialogue: Subtle, revealing subtext and character depth
-      - Descriptions: Rich, atmospheric, with careful attention to detail
-      
-      Emotional Elements:
-      - Deep psychological insights
-      - Complex moral choices
-      - Sophisticated relationship dynamics
-      - Nuanced emotional resolution
-      - Room for interpretation and reflection`,
-    wordCount: '800-1200',
-    scenes: '10-15'
-  }
-};
-
 export async function POST(req: Request) {
   try {
+    // Comprehensive environment variable validation
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!openaiApiKey) {
+      console.error('❌ OPENAI_API_KEY environment variable is missing');
+      return NextResponse.json(
+        { 
+          error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in your environment variables.',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!openaiApiKey.startsWith('sk-')) {
+      console.error('❌ Invalid OpenAI API key format');
+      return NextResponse.json(
+        { 
+          error: 'Invalid OpenAI API key format. Key should start with "sk-".',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Missing Supabase environment variables');
+      return NextResponse.json({ 
+        error: 'Database configuration error. Please check Supabase environment variables.',
+        configurationError: true
+      }, { status: 500 });
+    }
+
     const { genre, characterDescription, cartoonImageUrl, audience = 'children', user_id } = await req.json() as RequestBody;
 
     if (!genre || !characterDescription || !cartoonImageUrl) {
@@ -112,6 +56,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Inline genre prompts to avoid import issues
+    const genrePrompts = {
+      adventure: 'Create an exciting adventure story filled with discovery, challenges to overcome, and personal growth.',
+      siblings: 'Write a heartwarming story about the joys and challenges of sibling relationships, focusing on sharing, understanding, and family bonds.',
+      bedtime: 'Create a gentle, soothing bedtime story with calming imagery and a peaceful resolution that helps children transition to sleep.',
+      fantasy: 'Craft a magical tale filled with wonder, enchantment, and imaginative elements that spark creativity.',
+      history: 'Tell an engaging historical story that brings the past to life while weaving in educational elements naturally.',
+    };
+
     if (!genrePrompts[genre as keyof typeof genrePrompts]) {
       return NextResponse.json(
         { error: 'Invalid genre' },
@@ -119,25 +72,91 @@ export async function POST(req: Request) {
       );
     }
 
-    // TODO: Remove this console.log after debugging
-    console.log('🔑 OpenAI API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
-    console.log('🔍 API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
+    console.log('🔑 OpenAI API Key configured correctly');
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OpenAI API key is missing from environment variables');
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please check server environment variables.' },
-        { status: 500 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key format');
-      return NextResponse.json(
-        { error: 'Invalid OpenAI API key format' },
-        { status: 500 }
-      );
-    }
+    // Inline audience configuration
+    const audienceConfig = {
+      children: {
+        prompt: `
+          Story Requirements:
+          - Use simple, clear language suitable for young readers
+          - Keep sentences short and direct
+          - Include repetitive elements and patterns
+          - Focus on positive themes and clear morals
+          - Create opportunities for interactive engagement
+          - Maintain a gentle pace with 5-8 distinct scenes
+          - Use familiar concepts and relatable situations
+          - Include moments of humor and playfulness
+          - Ensure emotional safety throughout the story
+          
+          Language Guidelines:
+          - Vocabulary: Simple, everyday words with occasional new terms explained through context
+          - Sentence Structure: Short, clear sentences with basic patterns
+          - Dialogue: Natural, age-appropriate conversations
+          - Descriptions: Vivid but straightforward, focusing on primary colors and basic emotions
+          
+          Emotional Elements:
+          - Clear emotional expressions
+          - Simple conflict resolution
+          - Emphasis on friendship, family, and kindness
+          - Positive reinforcement of good behavior
+          - Gentle handling of challenging situations`,
+        wordCount: '300-400',
+        scenes: '5-8'
+      },
+      young_adults: {
+        prompt: `
+          Story Requirements:
+          - Develop more complex character arcs and relationships
+          - Include meaningful personal growth and self-discovery
+          - Address relevant social and emotional themes
+          - Create engaging dialogue with distinct character voices
+          - Build tension and resolution across 8-12 scenes
+          - Incorporate subtle humor and wit
+          - Balance entertainment with deeper messages
+          
+          Language Guidelines:
+          - Vocabulary: Rich and varied, including metaphors and imagery
+          - Sentence Structure: Mix of simple and complex sentences
+          - Dialogue: Natural conversations that reveal character
+          - Descriptions: Detailed and evocative, painting clear mental pictures
+          
+          Emotional Elements:
+          - Complex emotional situations
+          - Realistic internal conflicts
+          - Exploration of relationships and identity
+          - Nuanced character development
+          - Meaningful resolution that allows for reflection`,
+        wordCount: '600-800',
+        scenes: '8-12'
+      },
+      adults: {
+        prompt: `
+          Story Requirements:
+          - Craft sophisticated narrative structures
+          - Develop layered character relationships
+          - Explore complex themes and moral ambiguity
+          - Create subtle, nuanced dialogue
+          - Build a rich narrative across 10-15 scenes
+          - Include symbolic and metaphorical elements
+          - Address mature themes thoughtfully
+          
+          Language Guidelines:
+          - Vocabulary: Sophisticated and precise
+          - Sentence Structure: Complex and varied
+          - Dialogue: Subtle, revealing subtext and character depth
+          - Descriptions: Rich, atmospheric, with careful attention to detail
+          
+          Emotional Elements:
+          - Deep psychological insights
+          - Complex moral choices
+          - Sophisticated relationship dynamics
+          - Nuanced emotional resolution
+          - Room for interpretation and reflection`,
+        wordCount: '800-1200',
+        scenes: '10-15'
+      }
+    };
 
     const config = audienceConfig[audience as keyof typeof audienceConfig];
 
@@ -170,7 +189,7 @@ ${config.prompt}
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -223,8 +242,15 @@ ${config.prompt}
     const generatedStory = data.choices[0].message.content;
     console.log('✅ Successfully generated story');
 
+    // Dynamic base URL detection from request headers
+    const host = req.headers.get('host');
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    console.log('🌐 Detected base URL:', baseUrl);
+
     // Generate scenes using the existing endpoint
-    const scenesResponse = await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000'}/api/story/generate-scenes`, {
+    const scenesResponse = await fetch(`${baseUrl}/api/story/generate-scenes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -242,17 +268,13 @@ ${config.prompt}
       throw new Error('Failed to generate scenes');
     }
 
-    const { scenesText } = await scenesResponse.json();
-    const { pages } = JSON.parse(scenesText);
+    const { pages } = await scenesResponse.json();
 
     // Import Supabase client inside the handler to avoid build-time evaluation
     const { createClient } = await import('@supabase/supabase-js');
     
     // Save to storybook_entries
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: storybook, error: supabaseError } = await supabase
       .from('storybook_entries')

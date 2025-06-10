@@ -4,32 +4,40 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    // Comprehensive environment variable validation
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    
+    if (!openaiApiKey) {
+      console.error('❌ OPENAI_API_KEY environment variable is missing');
+      return NextResponse.json(
+        { 
+          error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in your environment variables.',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!openaiApiKey.startsWith('sk-')) {
+      console.error('❌ Invalid OpenAI API key format');
+      return NextResponse.json(
+        { 
+          error: 'Invalid OpenAI API key format. Key should start with "sk-".',
+          configurationError: true
+        },
+        { status: 500 }
+      );
+    }
+
     const { story, characterImage, audience = 'children' } = await request.json();
 
     if (!story || story.trim().length < 50) {
       return NextResponse.json({ error: 'Story must be at least 50 characters long.' }, { status: 400 });
     }
 
-    // TODO: Remove this console.log after debugging
-    console.log('🔑 OpenAI API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
-    console.log('🔍 API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
+    console.log('🔑 OpenAI API Key configured correctly');
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OpenAI API key is missing from environment variables');
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please check server environment variables.' },
-        { status: 500 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key format');
-      return NextResponse.json(
-        { error: 'Invalid OpenAI API key format' },
-        { status: 500 }
-      );
-    }
-
+    // Inline audience configuration to avoid import issues
     const audienceConfig = {
       children: { scenes: 10, pages: 4, notes: 'Simple, playful structure. 2–3 scenes per page.' },
       young_adults: { scenes: 14, pages: 6, notes: '2–3 scenes per page with meaningful plot turns.' },
@@ -38,23 +46,34 @@ export async function POST(request: Request) {
 
     const { scenes, pages, notes } = audienceConfig[audience as keyof typeof audienceConfig] || audienceConfig.children;
 
-    const characterDesc = characterImage
-      ? await describeCharacter(characterImage)
-      : 'a young protagonist';
+    let characterDesc = 'a young protagonist';
+    if (characterImage) {
+      try {
+        characterDesc = await describeCharacter(characterImage, openaiApiKey);
+        console.log('✅ Generated character description:', characterDesc);
+      } catch (error: any) {
+        console.warn('⚠️ Failed to describe character, using default:', error.message);
+        // Continue with default description instead of failing
+      }
+    }
 
     const systemPrompt = `
-You are a professional story structure expert and comic storybook planner.
+You are a professional comic book scene planner for a cartoon storybook app.
 
-Your task is to:
-- Expand the user's story if it's too short while preserving tone and plot.
-- Divide it into exactly ${scenes} vivid SCENES with strong narrative moments.
-- Group them into exactly ${pages} comic-style PAGES with 2–3 scenes per page.
-- Each scene must contain:
-  - description: what is happening (1–2 sentences).
-  - imagePrompt: a vivid and imaginative visual description (excluding the character's physical traits).
-  - emotion: the main character's emotion (for backend use only).
+Audience: ${audience.toUpperCase()}
+Target: ${scenes} scenes, grouped across ${pages} comic-style pages.
 
-Use JSON format:
+Each scene should reflect a strong visual moment or emotional beat from the story. Avoid filler.
+
+Scene requirements:
+- description: A short action summary for this scene
+- emotion: Main character's emotional state
+- imagePrompt: A rich, vivid DALL·E visual description (exclude character description; focus on environment, action, lighting, emotion)
+
+Visual pacing notes:
+${notes}
+
+Return your output in this strict format:
 {
   "pages": [
     {
@@ -69,9 +88,6 @@ Use JSON format:
     }
   ]
 }
-
-Comic Book Notes: ${notes}
-Character Description to use: ${characterDesc}
 `;
 
     console.log('📝 Making request to OpenAI GPT-4o API...');
@@ -79,7 +95,7 @@ Character Description to use: ${characterDesc}
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -163,21 +179,14 @@ Character Description to use: ${characterDesc}
   }
 }
 
-// 📸 Helper to describe character image
-async function describeCharacter(imageUrl: string): Promise<string> {
-  // TODO: Remove this console.log after debugging
-  console.log('🔑 OpenAI API Key status for character description:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
-
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured');
-  }
-
+// Helper function to describe character image
+async function describeCharacter(imageUrl: string, openaiApiKey: string): Promise<string> {
   console.log('🔍 Making request to OpenAI Vision API for character description...');
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Authorization': `Bearer ${openaiApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -185,8 +194,7 @@ async function describeCharacter(imageUrl: string): Promise<string> {
       messages: [
         {
           role: 'system',
-          content:
-            'You are a cartoon illustrator assistant. Your job is to analyze a character image and provide a short, repeatable cartoon description (face, hair, clothing, etc.). Exclude background or action.'
+          content: 'You are a cartoon illustrator assistant. Your job is to analyze a character image and provide a short, repeatable cartoon description (face, hair, clothing, etc.). Exclude background or action.'
         },
         {
           role: 'user',
