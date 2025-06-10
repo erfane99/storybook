@@ -8,6 +8,8 @@
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
   NEXT_PRIVATE_TARGET = "server"
+  NEXT_PUBLIC_SUPABASE_URL = "https://nzkwrrinpweiqcnzeric.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56a3dycmlucHdlaXFjbnplcmljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTE3NjYsImV4cCI6MjA2MjE4Nzc2Nn0.6KOABidPThLpLfw_YSKvK8YYwF1srRlaFyczTiRF0i8"
 
 [[headers]]
   for = "/_next/static/*"
