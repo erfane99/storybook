@@ -6,7 +6,7 @@ let supabaseClient: ReturnType<typeof createClient> | null = null;
 function getSupabaseClient() {
   if (!supabaseClient) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; // Changed to use anon key
 
     if (!supabaseUrl || !supabaseKey) {
       console.warn('⚠️ Supabase environment variables not configured for caching');

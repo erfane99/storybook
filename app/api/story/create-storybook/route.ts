@@ -115,13 +115,13 @@ export async function POST(request: Request) {
 
         if (!describeResponse.ok) {
           const errorText = await describeResponse.text();
-          console.error('Failed to get character description:', errorText);
-          throw new Error('Failed to process character image');
+          console.warn('⚠️ Character description failed:', errorText);
+          characterDescription = 'a cartoon character';
+        } else {
+          const { characterDescription: description } = await describeResponse.json();
+          characterDescription = description;
+          console.log('✅ Character description:', characterDescription);
         }
-
-        const { characterDescription: description } = await describeResponse.json();
-        characterDescription = description;
-        console.log('✅ Character description:', characterDescription);
       } catch (descError) {
         console.warn('⚠️ Character description failed, continuing without it:', descError);
         characterDescription = 'a cartoon character';
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
               audience,
               isReusedImage,
               cartoon_image: characterImage,
-              style: 'storybook', // Default style
+              style: 'storybook',
             }),
           });
 

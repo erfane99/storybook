@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCachedCartoonImage, saveCartoonImageToCache } from '@/lib/supabase/cache-utils';
 
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
@@ -39,18 +38,19 @@ export async function POST(request: Request) {
       isReusedImage,
       cartoon_image,
       user_id,
-      style,
+      style = 'storybook',
     } = await request.json();
 
-    if (!image_prompt || !character_description || !emotion || !style) {
+    if (!image_prompt || !character_description || !emotion) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const useMock = process.env.USE_MOCK === 'true';
 
-    // Check cache if user_id and cartoon_image are provided
-    if (user_id && cartoon_image) {
+    // Optional cache operations - completely isolated to prevent failures
+    if (user_id && cartoon_image && !useMock) {
       try {
+        const { getCachedCartoonImage } = await import('@/lib/supabase/cache-utils');
         const cachedUrl = await getCachedCartoonImage(cartoon_image, style, user_id);
         if (cachedUrl) {
           console.log('✅ Found cached cartoon image');
@@ -137,9 +137,10 @@ export async function POST(request: Request) {
     const imageUrl = data.data[0].url;
     console.log('✅ Successfully generated cartoon image');
 
-    // Save to cache if possible
-    if (user_id && cartoon_image) {
+    // Optional cache save - completely isolated to prevent failures
+    if (user_id && cartoon_image && !useMock) {
       try {
+        const { saveCartoonImageToCache } = await import('@/lib/supabase/cache-utils');
         await saveCartoonImageToCache(cartoon_image, imageUrl, style, user_id);
       } catch (cacheError) {
         console.warn('⚠️ Failed to save to cache (non-critical):', cacheError);

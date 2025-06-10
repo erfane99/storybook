@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCachedImage, saveToCache } from '@/lib/supabase/cache-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,9 +65,11 @@ export async function POST(request: Request) {
 
     console.log('🔑 OpenAI API Key configured correctly');
 
-    // Check cache if user_id is provided
+    // Optional cache operations - wrapped in try-catch to prevent failures
     if (user_id) {
       try {
+        // Dynamically import cache utilities to avoid build-time issues
+        const { getCachedImage } = await import('@/lib/supabase/cache-utils');
         const cachedUrl = await getCachedImage(prompt, style, user_id);
         if (cachedUrl) {
           console.log('✅ Found cached image');
@@ -134,9 +135,10 @@ export async function POST(request: Request) {
     const generatedUrl = data.data[0].url;
     console.log('✅ Successfully generated image');
 
-    // Save to cache if user_id is provided
+    // Optional cache save - wrapped in try-catch to prevent failures
     if (user_id) {
       try {
+        const { saveToCache } = await import('@/lib/supabase/cache-utils');
         await saveToCache(prompt, generatedUrl, style, user_id);
       } catch (cacheError) {
         console.warn('⚠️ Failed to save to cache (non-critical):', cacheError);
